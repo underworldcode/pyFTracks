@@ -3,13 +3,13 @@
     
     jupyter:
       environment:
-        - PYTHONPATH=/pyTracks
+        - PYTHONPATH=/pyFTracks
       build: 
         context: .
         dockerfile: ./Dockerfile
-      container_name: pyTracks
+      container_name: pyFTracks
       command: sh -c "jupyter notebook --allow-root --ip=0.0.0.0 --port=8888"
       ports:
         - "8888:8888"
       volumes:
-        - .:/pyTracks
+        - .:/pyFTracks

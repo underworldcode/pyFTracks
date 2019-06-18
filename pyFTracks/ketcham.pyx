@@ -77,7 +77,7 @@ class ForwardModel():
         ft_model_age = &val2
         reduced_density = &val3
 
-        reduced_lengths, first_node = self.calculate_reduced_lengths(
+        reduced_lengths, first_node = self._calculate_reduced_lengths(
             time, temperature, kinetic_parameter_type, nbins)
 
         ketcham_sum_population(nbins, time_memview.shape[0], first_node,
@@ -94,8 +94,8 @@ class ForwardModel():
         return (np.array(pdfAxis), np.array(pdf), np.array(cdf), oldest_age[0],
                 ft_model_age[0], reduced_density[0])
 
-    def calculate_reduced_lengths(self, time, temperature,
-                                  int kinetic_parameter_type, int nbins=200):
+    def _calculate_reduced_lengths(self, time, temperature,
+                                  int kinetic_parameter_type, int nbins):
 
         time = np.ascontiguousarray(time)
         temperature = np.ascontiguousarray(temperature)

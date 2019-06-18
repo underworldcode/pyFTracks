@@ -251,7 +251,6 @@ void ketcham_sum_population(int num_points_pdf, int numTTNodes, int firstTTNode,
     rStDev = calculate_reduced_stddev(rLen, doProject);
     obsBias = ketcham_age_correction(redLength[j]);
     calc = weight * obsBias / (rStDev * SQRT2PI);
-    printf("j %d rlen %f rStDev %f obsBias %f calc %f\n", j, rLen, rStDev, obsBias, calc);
     if (rLen > 0) {
       for (i = 0; i < num_points_pdf; i++) {
         if (pdfAxis[i] >= min_length) {
@@ -272,7 +271,6 @@ void ketcham_sum_population(int num_points_pdf, int numTTNodes, int firstTTNode,
     for (i=0; i < num_points_pdf; i++)  {
       pdf[i] = pdf[i] / cdf[num_points_pdf - 1];
       cdf[i] = cdf[i] / cdf[num_points_pdf - 1];
-      printf("pdf %f\n", pdf[i]);
     }
 }
 
