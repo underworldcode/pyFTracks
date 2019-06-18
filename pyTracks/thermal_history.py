@@ -3,7 +3,6 @@ from ketcham import isothermal_intervals
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 import matplotlib as mpl
-from copy import copy
 import pint
 
 u = pint.UnitRegistry()
@@ -54,8 +53,8 @@ class ThermalHistoryViewer(object):
 
         self.input_time = time
         self.input_temperature = temperature
-        self.original_time = copy(time)
-        self.original_temperature = copy(temperature)
+        self.original_time = np.copy(time)
+        self.original_temperature = np.copy(temperature)
 
         # figure.subplot.right
         mpl.rcParams['figure.subplot.right'] = 0.8
@@ -99,8 +98,8 @@ class ThermalHistoryViewer(object):
 
     def reset(self, event):
         """ Reset the values """
-        self.input_temperature = self.original_temperature
-        self.input_time = self.original_time
+        self.input_temperature = np.copy(self.original_temperature)
+        self.input_time = np.copy(self.original_time)
         self.l.set_ydata(self.input_temperature)
         self.m.set_ydata(self.input_temperature)
         self.l.set_xdata(self.input_time)

@@ -1,21 +1,11 @@
-import ketcham
 import matplotlib.pyplot as plt
 import numpy as np
 import pint
 from .annealing import KetchamEtAl
 from .utilities import draw_from_distrib
+from ketcham import ForwardModel
 
 u = pint.UnitRegistry()
-
-
-class ForwardModel(object):
-
-    def __init__(self, history, annealing_model):
-        self.annealing_model = annealing_model
-        self.history = history
-
-    def solve(self):
-        pass
 
 
 class KetchamModel(ForwardModel):
@@ -45,8 +35,8 @@ class KetchamModel(ForwardModel):
                                     self.kinetic_parameter_value,
                                     self.projected_track)
 
-    def calculate_track_lengths(self, nbins=200, use_confined=False,
-                                min_length=2.15):
+    def solve(self, nbins=200, use_confined=False, min_length=2.15,
+              length_reduction=0.893):
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
         temperature = self.history.temperature
         kinpar = {"ETCH_PIT_LENGTH": 0, "CL_PFU": 1,
@@ -55,15 +45,22 @@ class KetchamModel(ForwardModel):
         track_l0 = self.get_initial_track_length()
 
         kinetic_parameter_type = kinpar[self.kinetic_parameter_type]
-        reduced_length, pdf_axis, pdf, cdf = ketcham.track_lengths(
-            time, temperature, kinetic_parameter_type,
-            self.kinetic_parameter_value, track_l0, min_length, nbins,
-            self.projected_track, use_confined)
 
-        self.pdf_axis = pdf_axis
-        self.pdf = pdf * 0.1
+        pdf_axis, pdf, cdf, oldest_age, ft_model_age, reduced_density = (
+            self.calculate_density_distribution(
+                time, temperature, kinetic_parameter_type,
+                track_l0, min_length, nbins, length_reduction, 
+                self.projected_track, use_confined
+            )
+        )
 
-        return self.pdf_axis, self.pdf
+        self.oldest_age = oldest_age
+        self.ft_model_age = ft_model_age
+        self.reduced_density = reduced_density
+        self.pdf_axis = np.array(pdf_axis)
+        self.pdf = np.array(pdf) * 0.1
+
+        return
 
     def plot_track_length_density(self):
         plt.plot(self.pdf_axis, self.pdf)
@@ -80,9 +77,6 @@ class KetchamModel(ForwardModel):
         plt.xlim(0, 20)
         plt.xlabel("Length (microns)")
         plt.ylabel("counts")
-
-    def solve(self):
-        pass
 
 
 def initial_track_length(kinetic_parameter_type,
@@ -343,39 +337,3 @@ def calculate_single_grain_ages(Ns, Ni, rhod, zeta, g=0.5, trf="Linear"):
     Error = sez / 1e6
 
     return Age, Error
-
-
-#def KetchamModel(history, alo=16.3):
-#    """Return Apatite Fission Track Age (AFTA) and Track Length
-#    distribution using Ketcham et al. 1999 annealing model.
-#
-#    Parameter:
-#    ---------
-#    history -- A Thermal history class instance
-#    alo -- Initial track length
-#    """
-#    t = history.time
-#    T = history.Temperature
-#
-#    A = cdll.LoadLibrary(_KETCHAM_)
-#    ketcham = A.ketch_main_
-#    n = c_int(len(t))
-#    n = pointer(n)
-#    alo = c_double(alo)
-#    t = (c_float*len(t))(*t)
-#    T = (c_float*len(T))(*T)
-#    alo = pointer(alo)
-#    final_age = pointer(c_double())
-#    oldest_age = pointer(c_double())
-#    fmean = pointer(c_double())
-#    fdist = (c_double*200)()
-#    dx = 20. / 200.
-#    redDensity = pointer(c_double())
-#    ketcham(n, t, T, alo, final_age, oldest_age, fmean, fdist, redDensity)
-#    return {"Final Age": final_age.contents.value,
-#            "Oldest Age": oldest_age.contents.value,
-#            "Mean Track Length": fmean.contents.value,
-#            "Fission Track length distribution": (np.array([dx/2.0 +
-#             dx*float(a) for a in range(200)]),np.array([i*dx for i in fdist])),
-#            "redDensity": redDensity.contents.value}
-#

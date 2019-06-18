@@ -1,5 +1,5 @@
 
-df write_mtx_file(filename, sample_name, FTage, FTage_error, TL, NS, NI,
+def write_mtx_file(filename, sample_name, FTage, FTage_error, TL, NS, NI,
                     zeta, rhod):
 
     f = open(filename, "w")
