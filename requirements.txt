@@ -1,0 +1,6 @@
+Cython
+matplotlib
+numpy
+jupyter
+pint
+scipy
