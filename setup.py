@@ -6,7 +6,7 @@ from os import path
 
 MAJOR = 0
 MINOR = 1
-MICRO = 0
+MICRO = 1
 ISRELEASED = False
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 
@@ -18,6 +18,9 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 extensions = [Extension("ketcham", ["pyFTracks/ketcham.pyx",
                                     "pyFTracks/src/ketcham.c"],
                         include_dirs=["pyFTracks/include"])]
+
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
 
 setup(
     name='pyFTracks',
@@ -46,5 +49,6 @@ setup(
         'Programming Language :: Python :: 3.7',
     ],
     keywords='geology thermochronology fission-tracks',
+    install_requires=requirements,
 
 )
