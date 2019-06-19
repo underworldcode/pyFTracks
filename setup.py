@@ -1,12 +1,11 @@
-from distutils.core import setup
+from setuptools import setup, Extension
 from Cython.Build import cythonize
-from distutils.extension import Extension
 import numpy
 from os import path
 
 MAJOR = 0
 MINOR = 1
-MICRO = 1
+MICRO = 4
 ISRELEASED = False
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 
@@ -48,6 +47,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
+    packages=["pyFTracks"],
     keywords='geology thermochronology fission-tracks',
     install_requires=requirements,
 

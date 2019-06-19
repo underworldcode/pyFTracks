@@ -1,2 +1,6 @@
 include LICENSE
-include docs
+include docs/*
+include requirements.txt
+include README.rst
+include setup.cfg
+recursive-include pyFTracks *.c *h *.pyx

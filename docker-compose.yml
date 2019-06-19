@@ -3,7 +3,7 @@
     
     jupyter:
       environment:
-        - PYTHONPATH=/pyFTracks
+        - PYTHONPATH=/opt
       build: 
         context: .
         dockerfile: ./Dockerfile
@@ -12,4 +12,4 @@
       ports:
         - "8888:8888"
       volumes:
-        - .:/pyFTracks
+        - .:/opt
