@@ -1,8 +1,7 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import pint
 from .annealing import KetchamEtAl
-from .utilities import draw_from_distrib
+from .utilities import draw_from_distrib, drawbinom
 from ketcham import ForwardModel
 
 u = pint.UnitRegistry()
@@ -49,7 +48,7 @@ class KetchamModel(ForwardModel):
         pdf_axis, pdf, cdf, oldest_age, ft_model_age, reduced_density = (
             self.calculate_density_distribution(
                 time, temperature, kinetic_parameter_type,
-                track_l0, min_length, nbins, length_reduction, 
+                track_l0, min_length, nbins, length_reduction,
                 self.projected_track, use_confined
             )
         )
@@ -62,21 +61,33 @@ class KetchamModel(ForwardModel):
 
         return
 
-    def plot_track_length_density(self):
-        plt.plot(self.pdf_axis, self.pdf)
-        plt.xlabel("Length (microns)")
-        plt.ylabel("Density")
+    def generate_synthetic_counts(self, Nc=30):
+        """Generate Synthetic AFT data.
 
-    def get_synthetic_lengths(self, ntl=100):
-        self.tls = draw_from_distrib(self.pdf_axis, self.pdf, ntl)
-        self.mtl = (float(sum(self.tls))/len(self.tls) if len(self.tls) > 0 else float('nan'))
-        self.mtl_sd = np.std(self.tls)
+        Parameters:
+        Nc : Number of crystals
 
-    def plot_track_histogram(self):
-        plt.hist(self.tls)
-        plt.xlim(0, 20)
-        plt.xlabel("Length (microns)")
-        plt.ylabel("counts")
+        """
+        rho = self.reduced_density
+
+        # Probability in binomial distribution
+        prob = rho / (1. + rho)
+
+        # For Nc crystals, generate synthetic Ns and Ni
+        # count data using binomial distribution, conditional
+        # on total counts Ns + Ni, sampled randomly with
+        # a maximum of 100.
+
+        NsNi = np.random.randint(5, 100, Nc)
+        Ns = np.array([drawbinom(I, prob) for I in NsNi])
+        Ni = NsNi - Ns
+        return Ns, Ni
+
+    def generate_synthetic_lengths(self, ntl):
+        tls = draw_from_distrib(self.pdf_axis, self.pdf, ntl)
+        mtl = (float(sum(tls))/len(tls) if len(tls) > 0 else float('nan'))
+        mtl_sd = np.std(tls)
+        return tls, mtl, mtl_sd
 
 
 def initial_track_length(kinetic_parameter_type,
@@ -122,151 +133,58 @@ def initial_track_length(kinetic_parameter_type,
     return m * kinetic_parameter_value + b
 
 
+class Grain(object):
+
+    def __init__(self, spontaneous_tracks, induced_tracks,
+                 track_lengths=None, Dpars=None,
+                 Cl=None, name=None):
+        """
+          Grain
+
+          spontaneous_tracks: number of spontaneous tracks
+          induced_tracks: number of induced tracks
+          track_lengths: track length measurements
+          Dpars: Dpar values
+          Cl: Chlorine content
+          name: optional name
+
+        """
+
+        self.name = name
+        self.spontaneous = self.Ns = spontaneous_tracks
+        self.induced = self.Ni = induced_tracks
+        self.track_lengths = track_lengths
+        self.Dpars = Dpars
+
+        self.min_Dpars = np.mean(Dpars)
+        self.min_track_lengths = self.MTL = np.mean(self.track_lengths)
+
+
 class Sample(object):
 
-    def __init__(self, name, counts=[], AFT=None, AFT_error=None,
-                 tls=[], zeta=None, rhod=None):
-        self.name = name
-        self.counts = counts
-        self.nc = len(counts)
+    def __init__(self, grains, coordinates=None,
+                 elevation=None, name=None):
 
-        if counts:
-            self.ns, self.ni = list(zip(counts))
-
-        self.AFT = AFT
-        self.AFT_error = AFT_error
-        self.tls = tls
-        self.zeta = zeta
-        self.rhod = rhod
-
-    def write_mtx_file(self, filename):
-        write_mtx_file(filename, self.name, self.AFT, self.AFT_error, self.tls,
-                       self.ns, self.ni, self.zeta, self.rhod)
-
-
-class Synthetic(Sample):
-
-    def __init__(self, name=None, nc=30, ntl=100, history=None):
-        Sample.__init__(self, name=name)
-        if not self.name:
-            self.name = "Synthetic"
-        if not self.zeta:
-            self.zeta = 323.
-        if not self.rhod:
-            self.rhod = 1.e6
-        self.nc = nc
-        self.ntl = ntl
-        self.history = history
-        if history:
-            self.ketcham_model()
-            self.synthetic_counts()
-            self.synthetic_lengths()
-
-    def ketcham_model(self, alo=16.3):
-        """Return Apatite Fission Track Age (AFTA) and Track Length
-        distribution using Ketcham et al. 1999 annealing model.
-
-        Parameter:
-        ---------
-        alo -- Initial track length
         """
-        data = KetchamModel(self.history, alo=alo)
-        # Process Fission Track Distribution
-        # distribution range from 0 to 20 microns
-        # We have 200 values.
-        vals, fdist = data["Fission Track length distribution"]
-        probs = [i for i in fdist]
+          Sample
 
-        self.AFT = data["Final Age"]
-        self.AFT_error = self.AFT*0.05
-        self.Oldest_Age = data["Oldest Age"]
-        self.MTL = data["Mean Track Length"]
-        self.TLD = fdist
-        self.reDensity = data["redDensity"]
-        self.rho = self.reDensity
-        self.bins = vals
-        return
+          grains: list of grains
+          coordinates: coordinates of the sample location
+          elevation: elevation of the sample location
+          name: sample name
+        """
 
-    def synthetic_counts(self):
-        data = generate_synthetic_counts(self.rho, self.nc)
-        self.ns = data["Spontaneous tracks (Ns)"]
-        self.ni = data["Induced tracks (Ni)"]
-        self.counts = list(zip(self.ns, self.ni))
-        return
+        self.name = name
 
-    def synthetic_lengths(self):
-        self.tls = draw_from_distrib(self.bins, self.TLD, self.ntl)
-        self.mtl = (float(sum(self.tls))/len(self.tls)
-                    if len(self.tls) > 0 else float('nan'))
-        self.mtl_sd = np.std(self.tls)
-
-    def plot_predicted_TLD(self):
-        plt.plot(self.bins, self.TLD)
-        plt.xlabel("Length (microns)")
-        plt.ylabel("Density")
-
-    def plot_history(self):
-        t = self.history.time
-        T = self.history.Temperature
-        plt.plot(t, T)
-        plt.ylim((max(T)+10, min(T)-10))
-        plt.xlim((max(t), min(t)))
-        plt.xlabel("time (Ma)")
-        plt.ylabel("Temperature (Celcius)")
-
-    def plot_track_histogram(self):
-        plt.hist(self.tls)
-        plt.xlim(0, 20)
-        plt.xlabel("Length (microns)")
-        plt.ylabel("counts")
+        grains = list(grains)
+        for grain in grains:
+            if not isinstance(grain, Grain):
+                raise ValueError("grains must be a list of Grain instance")
+        self.grains = grains
+        self.ngrains = len(grains)
 
 
-def write_mtx_file(filename, sample_name, FTage, FTage_error, TL, NS, NI, zeta, rhod):
-
-    f = open(filename, "w")
-    f.write("{name:s}\n".format(name=sample_name))
-    f.write("{value:s}\n".format(value=str(-999)))
-    f.write("{nconstraints:d} {ntl:d} {nc:d} {zeta:5.1f} {rhod:12.1f} {totco:d}\n".format(
-             nconstraints=0, ntl=len(TL), nc=NS.size, zeta=zeta, rhod=rhod,
-            totco=2000))
-    f.write("{age:5.1f} {age_error:5.1f}\n".format(age=FTage,
-                                                   age_error=FTage_error))
-    TLmean = (float(sum(TL))/len(TL) if len(TL) > 0 else float('nan'))
-    TLmean_sd = np.std(TL)
-
-    f.write("{mtl:5.1f} {mtl_error:5.1f}\n".format(mtl=TLmean,
-                                                   mtl_error=TLmean*0.05))
-    f.write("{mtl_std:5.1f} {mtl_std_error:5.1f}\n".format(mtl_std=TLmean_sd,
-                                                           mtl_std_error=TLmean_sd*0.05))
-    for i in range(NS.size):
-        f.write("{ns:d} {ni:d}\n".format(ns=NS[i], ni=NI[i]))
-
-    for track in TL:
-        f.write("{tl:4.1f}\n".format(tl=track))
-
-    f.close()
-    return 0
-
-
-def generate_synthetic_counts(rho, Nc=30):
-    """Generate Synthetic AFT data.
-
-    Parameters:
-    rho : track density
-    Nc : Number of crystals
-
-    """
-    # Probability in binomial distribution
-    prob = rho / (1. + rho)
-
-    # For Nc crystals, generate synthetic Ns and Ni count data using binomial
-    # distribution, conditional on total counts Ns + Ni, sampled randomly with
-    # a maximum of 1000.
-    # Nc is the number of
-    NsNi = np.random.randint(5, MAXCOUNT, Nc)
-    Ns = np.array([drawbinom(I, prob) for I in NsNi])
-    Ni = NsNi - Ns
-    return {"Spontaneous tracks (Ns)": Ns, "Induced tracks (Ni)": Ni}
+Apatite = Grain
 
 
 def calculate_central_age(Ns, Ni, zeta, seZeta, rhod, seRhod, sigma=0.15):
