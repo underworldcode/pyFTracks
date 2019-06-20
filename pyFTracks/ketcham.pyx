@@ -51,8 +51,9 @@ class ForwardModel():
         self.history = history
 
     def calculate_density_distribution(self, time, temperature,
-            int kinetic_parameter_type, double init_length,
-            double min_length, int nbins, double std_length_reduction,
+            int kinetic_parameter_type, double kinetic_parameter_value,
+            double init_length, double min_length, int nbins,
+            double std_length_reduction,
             int project, int usedCf):
 
         time = np.ascontiguousarray(time)
@@ -78,7 +79,8 @@ class ForwardModel():
         reduced_density = &val3
 
         reduced_lengths, first_node = self._calculate_reduced_lengths(
-            time, temperature, kinetic_parameter_type, nbins)
+            time, temperature, kinetic_parameter_type,
+            kinetic_parameter_value, nbins)
 
         ketcham_sum_population(nbins, time_memview.shape[0], first_node,
                                <int> project, <int> usedCf, &time_memview[0],
@@ -95,7 +97,9 @@ class ForwardModel():
                 ft_model_age[0], reduced_density[0])
 
     def _calculate_reduced_lengths(self, time, temperature,
-                                  int kinetic_parameter_type, int nbins):
+                                  int kinetic_parameter_type,
+                                  double kinetic_parameter_value,
+                                  int nbins):
 
         time = np.ascontiguousarray(time)
         temperature = np.ascontiguousarray(temperature)
@@ -110,8 +114,8 @@ class ForwardModel():
 
         ketcham_calculate_model_length(&time_memview[0], &temperature_memview[0],
                                        time_memview.shape[0], &reduced_lengths[0],
-                                       <double> self.kinetic_parameter_value,
-                                       <int> kinetic_parameter_type,
+                                       kinetic_parameter_value,
+                                       kinetic_parameter_type,
                                        first_node)
 
         return np.array(reduced_lengths), first_node[0]

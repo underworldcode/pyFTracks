@@ -1,8 +1,5 @@
 import numpy as np
 from ketcham import isothermal_intervals
-import matplotlib.pyplot as plt
-from matplotlib.widgets import Button
-import matplotlib as mpl
 import pint
 
 u = pint.UnitRegistry()
@@ -45,119 +42,6 @@ class ThermalHistory(object):
             self.input_time, self.input_temperature, max_temperature_per_step,
             max_temperature_step_near_ta)
         return
-
-
-class ThermalHistoryViewer(object):
-
-    def __init__(self, time, temperature):
-
-        self.input_time = time
-        self.input_temperature = temperature
-        self.original_time = np.copy(time)
-        self.original_temperature = np.copy(temperature)
-
-        # figure.subplot.right
-        mpl.rcParams['figure.subplot.right'] = 0.8
-
-        # set up a plot
-        self.fig, self.ax1 = plt.subplots(1, 1, figsize=(9.0, 8.0), sharex=True)
-        self.pind = None  # active point
-        self.epsilon = 5  # max pixel distance
-
-        self.ax1.plot(
-            self.original_time,
-            self.original_temperature,
-            'k--', label='original')
-
-        self.l, = self.ax1.plot(
-            self.input_time,
-            self.input_temperature,
-            color='k', linestyle='none',
-            marker='o', markersize=8)
-
-        self.m, = self.ax1.plot(self.input_time, self.input_temperature, 'r-')
-
-        self.ax1.set_yscale('linear')
-        self.ax1.set_xlim(np.max(self.input_time), 0.)
-        self.ax1.set_ylim(np.max(self.input_temperature), 0.)
-        self.ax1.set_xlabel('Time (Myr)')
-        self.ax1.set_ylabel('Temperature (C)')
-        self.ax1.grid(True)
-        self.ax1.yaxis.grid(True, which='minor', linestyle='--')
-        self.ax1.legend(loc=4, prop={'size': 10})
-
-        self.axres = plt.axes([0.84, 0.8-((self.original_time.shape[0])*0.05), 0.12, 0.02])
-        self.bres = Button(self.axres, 'Test')
-        self.bres.on_clicked(self.reset)
-
-        self.fig.canvas.mpl_connect('button_press_event', self.button_press_callback)
-        self.fig.canvas.mpl_connect('button_release_event', self.button_release_callback)
-        self.fig.canvas.mpl_connect('motion_notify_event', self.motion_notify_callback)
-
-        plt.show()
-
-    def reset(self, event):
-        """ Reset the values """
-        self.input_temperature = np.copy(self.original_temperature)
-        self.input_time = np.copy(self.original_time)
-        self.l.set_ydata(self.input_temperature)
-        self.m.set_ydata(self.input_temperature)
-        self.l.set_xdata(self.input_time)
-        self.m.set_xdata(self.input_time)
-        plt.draw()
-
-    def button_press_callback(self, event):
-        'whenever a mouse button is pressed'
-        if event.inaxes is None:
-            return
-        if event.button != 1:
-            return
-        self.pind = self.get_ind_under_point(event)
-
-    def button_release_callback(self, event):
-        """ Whenever a mouse button is released """
-        if event.button != 1:
-            return
-        self.pind = None
-
-    def get_ind_under_point(self, event):
-        """
-           Get the index of the vertex under point if within epsilon tolerance
-        """
-        # display coords
-        t = self.ax1.transData.inverted()
-        tinv = self.ax1.transData
-        #xy = t.transform([event.x, event.y])
-        xr = np.reshape(self.input_time, (np.shape(self.input_time)[0], 1))
-        yr = np.reshape(self.input_temperature, (np.shape(self.input_temperature)[0], 1))
-        xy_vals = np.append(xr, yr, 1)
-        xyt = tinv.transform(xy_vals)
-        xt, yt = xyt[:, 0], xyt[:, 1]
-        d = np.hypot(xt - event.x, yt - event.y)
-        indseq, = np.nonzero(d == d.min())
-        ind = indseq[0]
-
-        if d[ind] >= self.epsilon:
-            ind = None
-
-        return ind
-
-    def motion_notify_callback(self, event):
-        'on mouse movement'
-        if self.pind is None:
-            return
-        if event.inaxes is None:
-            return
-        if event.button != 1:
-            return
-
-        self.input_temperature[self.pind] = event.ydata
-        self.input_time[self.pind] = event.xdata
-        self.l.set_ydata(self.input_temperature)
-        self.m.set_ydata(self.input_temperature)
-        self.l.set_xdata(self.input_time)
-        self.m.set_xdata(self.input_time)
-        self.fig.canvas.draw_idle()
 
 
 # Some useful thermal histories

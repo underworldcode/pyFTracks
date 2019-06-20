@@ -3,53 +3,41 @@ import pint
 from .annealing import KetchamEtAl
 from .utilities import draw_from_distrib, drawbinom
 from ketcham import ForwardModel
+from .plot import Viewer
 
 u = pint.UnitRegistry()
 
 
 class KetchamModel(ForwardModel):
 
-    def __init__(self, history, initial_track_length=None,
-                 kinetic_parameter_type=None, kinetic_parameter_value=0.0,
-                 projected_track=False):
-
+    def __init__(self, history, grain, use_projected_track=False):
         super(KetchamModel, self).__init__(history, KetchamEtAl)
 
-        self.input_initial_track_length = initial_track_length
-        self.kinetic_parameter_type = kinetic_parameter_type
-        self.kinetic_parameter_value = kinetic_parameter_value
-        self.projected_track = projected_track
-
-    def get_initial_track_length(self):
-        """
-            Returns the initial track length for the population based on
-            Carlson and Donelick experiments depending on the kinetic
-            parameter type. If no kinetic is entered return track length
-            enterer by user
-        """
-        if self.input_initial_track_length:
-            return self.input_initial_track_length
-
-        return initial_track_length(self.kinetic_parameter_type,
-                                    self.kinetic_parameter_value,
-                                    self.projected_track)
+        self.grain = grain
+        self.use_projected_track = use_projected_track
 
     def solve(self, nbins=200, use_confined=False, min_length=2.15,
               length_reduction=0.893):
+
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
         temperature = self.history.temperature
         kinpar = {"ETCH_PIT_LENGTH": 0, "CL_PFU": 1,
                   "OH_PFU": 2, "CL_WT_PCT": 3}
 
-        track_l0 = self.get_initial_track_length()
+        if self.use_projected_track:
+            track_l0 = self.grain.l0_projected
+        else:
+            track_l0 = self.grain.l0
 
-        kinetic_parameter_type = kinpar[self.kinetic_parameter_type]
+        kinetic_parameter_type = kinpar[self.grain.kinetic_parameter_type]
+        kinetic_parameter_value = self.grain.kinetic_parameter_value
 
         pdf_axis, pdf, cdf, oldest_age, ft_model_age, reduced_density = (
             self.calculate_density_distribution(
                 time, temperature, kinetic_parameter_type,
+                kinetic_parameter_value,
                 track_l0, min_length, nbins, length_reduction,
-                self.projected_track, use_confined
+                self.use_projected_track, use_confined
             )
         )
 
@@ -58,6 +46,7 @@ class KetchamModel(ForwardModel):
         self.reduced_density = reduced_density
         self.pdf_axis = np.array(pdf_axis)
         self.pdf = np.array(pdf) * 0.1
+        self.MTL = np.sum(self.pdf_axis * self.pdf) * 200.0 / self.pdf.shape[0] 
 
         return
 
@@ -85,25 +74,13 @@ class KetchamModel(ForwardModel):
 
     def generate_synthetic_lengths(self, ntl):
         tls = draw_from_distrib(self.pdf_axis, self.pdf, ntl)
-        mtl = (float(sum(tls))/len(tls) if len(tls) > 0 else float('nan'))
-        mtl_sd = np.std(tls)
-        return tls, mtl, mtl_sd
+        return tls
+
+    def viewer(self):
+        return Viewer(self)
 
 
-def initial_track_length(kinetic_parameter_type,
-                         kinetic_parameter_value,
-                         use_projected_track=False):
-    """
-
-        Returns the initial track length for the population based
-        on the apatite kinetics, using data from experiment H0
-        by W.D.Carlson and R.A.Donelick (UT Austin)
-
-        kinetic_parameter_type: ETCH_PIT_LENGTH, CL_PFU, OH_PFU, CL_WT_PFU
-        kinetic_parameter_value: value of the kinetic parameter
-        use_projected_track: use projected track? default is False
-
-    """
+class Grain(object):
 
     unprojected = {"ETCH_PIT_LENGTH": {"m": 0.283, "b": 15.63},
                    "CL_PFU": {"m": 0.544, "b": 16.18},
@@ -115,34 +92,13 @@ def initial_track_length(kinetic_parameter_type,
                  "OH_PFU": {"m": 0.000, "b": 16.57},
                  "CL_WT_PCT": {"m": 0.17317, "b": 16.495}}
 
-    if use_projected_track:
-        if kinetic_parameter_type not in projected.keys():
-            raise ValueError("""{0} is not a valid kinetic parameter
-                             type""".format(kinetic_parameter_type))
-        else:
-            m = projected[kinetic_parameter_type]["m"]
-            b = projected[kinetic_parameter_type]["b"]
-    else:
-        if kinetic_parameter_type not in unprojected.keys():
-            raise ValueError("""{0} is not a valid kinetic parameter
-                             type""".format(kinetic_parameter_type))
-        else:
-            m = unprojected[kinetic_parameter_type]["m"]
-            b = unprojected[kinetic_parameter_type]["b"]
-
-    return m * kinetic_parameter_value + b
-
-
-class Grain(object):
-
-    def __init__(self, spontaneous_tracks, induced_tracks,
-                 track_lengths=None, Dpars=None,
+    def __init__(self, Ns=None, Ni=None, track_lengths=None, Dpars=None,
                  Cl=None, name=None):
         """
           Grain
 
-          spontaneous_tracks: number of spontaneous tracks
-          induced_tracks: number of induced tracks
+          Ns: number of spontaneous tracks
+          Ni: number of induced tracks
           track_lengths: track length measurements
           Dpars: Dpar values
           Cl: Chlorine content
@@ -151,13 +107,44 @@ class Grain(object):
         """
 
         self.name = name
-        self.spontaneous = self.Ns = spontaneous_tracks
-        self.induced = self.Ni = induced_tracks
+        self.spontaneous = self.Ns = Ns
+        self.induced = self.Ni = Ni
         self.track_lengths = track_lengths
-        self.Dpars = Dpars
 
-        self.min_Dpars = np.mean(Dpars)
-        self.min_track_lengths = self.MTL = np.mean(self.track_lengths)
+        if Dpars:
+            self.kinetic_parameter_type = "ETCH_PIT_LENGTH"
+            self.kinetic_parameter_value = np.mean(Dpars)
+        elif Cl:
+            self.kinetic_parameter_type = "CL_PFU"
+            self.kinetic_parameter_value = np.mean(Cl)
+
+        self._get_initial_track_length()
+
+        if self.track_lengths:
+            self.min_track_lengths = self.MTL = np.mean(self.track_lengths)
+
+    def _get_initial_track_length(self):
+        """
+
+            Returns the initial track length for the population based
+            on the apatite kinetics, using data from experiment H0
+            by W.D.Carlson and R.A.Donelick (UT Austin)
+
+            kinetic_parameter_type: ETCH_PIT_LENGTH, CL_PFU, OH_PFU, CL_WT_PFU
+            kinetic_parameter_value: value of the kinetic parameter
+            use_projected_track: use projected track? default is False
+
+        """
+
+        m = Grain.projected[self.kinetic_parameter_type]["m"]
+        b = Grain.projected[self.kinetic_parameter_type]["b"]
+        self.l0_projected = m * self.kinetic_parameter_value + b
+
+        m = Grain.unprojected[self.kinetic_parameter_type]["m"]
+        b = Grain.unprojected[self.kinetic_parameter_type]["b"]
+        self.l0 = m * self.kinetic_parameter_value + b
+
+        return
 
 
 class Sample(object):

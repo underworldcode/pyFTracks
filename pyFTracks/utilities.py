@@ -22,7 +22,6 @@ def drawbinom(I, prob):
 def create_distribution(xk, pk, name="TLD"):
     return stats.rv_discrete(name=name, values=(xk, pk))
 
-
 def draw_from_distrib(vals, pdf, size=1):
     """Random Draw from given distribution
     """
