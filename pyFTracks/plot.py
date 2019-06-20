@@ -9,8 +9,8 @@ class Viewer(object):
     def __init__(self, forward_model=None):
 
         if forward_model:
-            self.time = forward_model.history.input_time.magnitude
-            self.temperature = forward_model.history.input_temperature.magnitude
+            self.time = np.array(forward_model.history.input_time)
+            self.temperature = np.array(forward_model.history.input_temperature)
         else:
             self.time = np.empty()
             self.temperature = np.empty()
