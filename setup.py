@@ -25,6 +25,7 @@ setup(
     name='pyFTracks',
     setup_requires=[
         'setuptools>=18.0',
+        'numpy',
         'cython'
         ],
     version=VERSION,
