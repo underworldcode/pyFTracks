@@ -5,6 +5,8 @@ pyFTracks: Fission Track Modelling and Analysis with python
 .. image:: https://img.shields.io/pypi/v/pyftracks.svg
     :target: https://pypi.python.org/pypi/pyftracks
     :alt: Pip
+.. image:: https://mybinder.org/badge_logo.svg
+ :target: https://mybinder.org/v2/gh/rbeucher/pyFTracks.git/master
 
 pyFTracks is a Python utility to calculate fission track thermochrnological data.
 
