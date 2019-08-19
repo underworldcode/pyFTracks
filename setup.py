@@ -1,5 +1,5 @@
 from setuptools import setup, Extension
-from Cython.Build import cythonize
+#from Cython.Build import cythonize
 import numpy
 from os import path
 
@@ -23,9 +23,13 @@ with open('requirements.txt') as f:
 
 setup(
     name='pyFTracks',
+    setup_requires=[
+        'setuptools>=18.0',
+        'cython'
+        ],
     version=VERSION,
     description='Fission Track Modelling and Analysis with Python',
-    ext_modules=cythonize(extensions),
+    ext_modules=extensions,
     include_dirs=[numpy.get_include()],
     long_description=long_description,
     url='https://github.com/rbeucher/pyFTracks.git',

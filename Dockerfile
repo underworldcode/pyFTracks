@@ -8,11 +8,9 @@ RUN apt-get update -qq && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-ENV PYTHONPATH="/opt"
-COPY requirements.txt .
 RUN pip install --upgrade pip
-RUN pip install --no-cache-dir  -r requirements.txt
-RUN pip install pyFTracks
+RUN pip install git+https://github.com/rbeucher/pyFTracks.git --prefix="/opt"
+ENV PYTHONPATH="/opt"
 
 EXPOSE 8888
 
