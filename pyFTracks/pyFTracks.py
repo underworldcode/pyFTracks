@@ -2,22 +2,27 @@ import numpy as np
 import pint
 from .annealing import KetchamEtAl
 from .utilities import draw_from_distrib, drawbinom
-from ketcham import ForwardModel
+from ketcham import _Ketcham2007
+from ketcham import _Ketcham1999
 from .plot import Viewer
 
 u = pint.UnitRegistry()
 
 
-class KetchamModel(ForwardModel):
+class Ketcham1999(_Ketcham1999):
 
-    def __init__(self, history, grain, use_projected_track=False):
-        super(KetchamModel, self).__init__(history, KetchamEtAl)
+    def __init__(self, history, use_projected_track=False,
+                 use_confined_track=False, min_length=2.15,
+                 length_reduction=0.893, etchant="5.5"):
+        super(Ketcham1999, self).__init__(history)
 
-        self.grain = grain
         self.use_projected_track = use_projected_track
+        self.use_confined_track = use_confined_track
+        self.min_length = min_length
+        self.length_reduction = length_reduction
+        self.etchant = etchant
 
-    def solve(self, nbins=200, use_confined=False, min_length=2.15,
-              length_reduction=0.893):
+    def solve(self, grain, nbins=200):
 
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
         temperature = self.history.temperature
@@ -25,19 +30,19 @@ class KetchamModel(ForwardModel):
                   "OH_PFU": 2, "CL_WT_PCT": 3}
 
         if self.use_projected_track:
-            track_l0 = self.grain.l0_projected
+            track_l0 = grain.l0_projected
         else:
-            track_l0 = self.grain.l0
+            track_l0 = grain.l0
 
-        kinetic_parameter_type = kinpar[self.grain.kinetic_parameter_type]
-        kinetic_parameter_value = self.grain.kinetic_parameter_value
+        kinetic_parameter_type = kinpar[grain.kinetic_parameter_type]
+        kinetic_parameter_value = grain.kinetic_parameter_value
 
         pdf_axis, pdf, cdf, oldest_age, ft_model_age, reduced_density = (
             self.calculate_density_distribution(
                 time, temperature, kinetic_parameter_type,
                 kinetic_parameter_value,
-                track_l0, min_length, nbins, length_reduction,
-                self.use_projected_track, use_confined
+                track_l0, self.min_length, nbins, self.length_reduction,
+                self.use_projected_track, self.use_confined_track
             )
         )
 
@@ -75,9 +80,6 @@ class KetchamModel(ForwardModel):
     def generate_synthetic_lengths(self, ntl):
         tls = draw_from_distrib(self.pdf_axis, self.pdf, ntl)
         return tls
-
-    def viewer(self):
-        return Viewer(self)
 
 
 class Grain(object):

@@ -8,9 +8,13 @@ int refine_history(double *time, double *temperature, int npoints,
                    double max_temp_per_step, double max_temp_step_near_ta,
                    double *new_time, double *new_temperature, int *new_npoints);
 
-void ketcham_calculate_model_length(double *time, double *temperature, int numTTNodes,
-                                    double *redLength,  double kinPar, int kinParType,
-                                    int *firstTTNode);
+void ketch99_reduced_lengths(double *time, double *temperature, int numTTNodes,
+                             double *redLength,  double kinPar, int kinParType,
+                             int *firstTTNode);
+
+void ketch07_reduced_lengths(double *time, double *temperature, int numTTNodes,
+                             double *redLength,  double kinPar, int kinParType,
+                             int *firstTTNode, int etchant);
 
 void ketcham_sum_population(int numPDFPts, int numTTNodes, int firstTTNode, int doProject,
                             int usedCf, double *time, double *temperature, double *pdfAxis,
