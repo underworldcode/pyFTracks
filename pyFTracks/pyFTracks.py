@@ -2,58 +2,83 @@ import numpy as np
 import pint
 from .annealing import KetchamEtAl
 from .utilities import draw_from_distrib, drawbinom
-from ketcham import _Ketcham2007
-from ketcham import _Ketcham1999
+from ketcham import ketcham99_annealing_model
+from ketcham import ketcham07_annealing_model
+from ketcham import sum_population
+from ketcham import calculate_model_age
 from .plot import Viewer
 
 u = pint.UnitRegistry()
 
+kinpar = {"ETCH_PIT_LENGTH": 0, "CL_PFU": 1,
+          "OH_PFU": 2, "CL_WT_PCT": 3}
 
-class Ketcham1999(_Ketcham1999):
+class Ketcham1999():
 
     def __init__(self, history, use_projected_track=False,
                  use_confined_track=False, min_length=2.15,
                  length_reduction=0.893, etchant="5.5"):
-        super(Ketcham1999, self).__init__(history)
 
+        self.history = history
         self.use_projected_track = use_projected_track
         self.use_confined_track = use_confined_track
         self.min_length = min_length
         self.length_reduction = length_reduction
         self.etchant = etchant
 
-    def solve(self, grain, nbins=200):
-
+    def _get_reduced_length(self, grain, nbins=200):
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
         temperature = self.history.temperature
-        kinpar = {"ETCH_PIT_LENGTH": 0, "CL_PFU": 1,
-                  "OH_PFU": 2, "CL_WT_PCT": 3}
+        kinetic_parameter_type = kinpar[grain.kinetic_parameter_type]
+        kinetic_parameter_value = grain.kinetic_parameter_value
+        
+        reduced_lengths, first_node = ketcham99_annealing_model(
+                time, temperature, kinetic_parameter_type,
+                kinetic_parameter_value, nbins
+                )
+        self.reduced_lengths = reduced_lengths
+        self.first_node = first_node
+        return reduced_lengths, first_node
 
+    def _get_distribution(self, grain, nbins=200):
+        time = (self.history.time * u.megayear).to(u.seconds).magnitude
+        temperature = self.history.temperature
+        
         if self.use_projected_track:
             track_l0 = grain.l0_projected
         else:
             track_l0 = grain.l0
 
-        kinetic_parameter_type = kinpar[grain.kinetic_parameter_type]
-        kinetic_parameter_value = grain.kinetic_parameter_value
-
-        pdf_axis, pdf, cdf, oldest_age, ft_model_age, reduced_density = (
-            self.calculate_density_distribution(
-                time, temperature, kinetic_parameter_type,
-                kinetic_parameter_value,
-                track_l0, self.min_length, nbins, self.length_reduction,
+        pdf_axis, pdf, cdf = sum_population(
+                time, temperature,
+                self.reduced_lengths, self.first_node,
+                track_l0, self.min_length, nbins,
                 self.use_projected_track, self.use_confined_track
-            )
+                )
+        self.pdf_axis = np.array(pdf_axis)
+        self.pdf = np.array(pdf) * 0.1
+        self.MTL = np.sum(self.pdf_axis * self.pdf) * 200.0 / self.pdf.shape[0] 
+
+        return self.pdf_axis, self.pdf, self.MTL
+
+    def calculate_age(self, grain, nbins=200):
+        time = (self.history.time * u.megayear).to(u.seconds).magnitude
+        temperature = self.history.temperature
+
+        self._get_reduced_length(grain, nbins)
+        self._get_distribution(grain, nbins)
+        oldest_age, ft_model_age, reduced_density = calculate_model_age(
+        time, temperature, self.reduced_lengths, 
+        self.first_node, self.length_reduction
         )
 
         self.oldest_age = oldest_age
         self.ft_model_age = ft_model_age
         self.reduced_density = reduced_density
-        self.pdf_axis = np.array(pdf_axis)
-        self.pdf = np.array(pdf) * 0.1
-        self.MTL = np.sum(self.pdf_axis * self.pdf) * 200.0 / self.pdf.shape[0] 
 
-        return
+        return self.oldest_age, self.ft_model_age, self.reduced_density
+
+    solve = calculate_age
 
     def generate_synthetic_counts(self, Nc=30):
         """Generate Synthetic AFT data.
