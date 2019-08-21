@@ -13,32 +13,22 @@ u = pint.UnitRegistry()
 kinpar = {"ETCH_PIT_LENGTH": 0, "CL_PFU": 1,
           "OH_PFU": 2, "CL_WT_PCT": 3}
 
-class Ketcham1999():
+etchants = {"5.5": 0, "5.0": 1}
+
+class ForwardModel():
 
     def __init__(self, history, use_projected_track=False,
                  use_confined_track=False, min_length=2.15,
-                 length_reduction=0.893, etchant="5.5"):
+                 length_reduction=0.893):
 
         self.history = history
         self.use_projected_track = use_projected_track
         self.use_confined_track = use_confined_track
         self.min_length = min_length
         self.length_reduction = length_reduction
-        self.etchant = etchant
 
     def _get_reduced_length(self, grain, nbins=200):
-        time = (self.history.time * u.megayear).to(u.seconds).magnitude
-        temperature = self.history.temperature
-        kinetic_parameter_type = kinpar[grain.kinetic_parameter_type]
-        kinetic_parameter_value = grain.kinetic_parameter_value
-        
-        reduced_lengths, first_node = ketcham99_annealing_model(
-                time, temperature, kinetic_parameter_type,
-                kinetic_parameter_value, nbins
-                )
-        self.reduced_lengths = reduced_lengths
-        self.first_node = first_node
-        return reduced_lengths, first_node
+        return
 
     def _get_distribution(self, grain, nbins=200):
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
@@ -105,6 +95,62 @@ class Ketcham1999():
     def generate_synthetic_lengths(self, ntl):
         tls = draw_from_distrib(self.pdf_axis, self.pdf, ntl)
         return tls
+
+
+class Ketcham1999(ForwardModel):
+
+    def __init__(self, history, use_projected_track=False,
+                 use_confined_track=False, min_length=2.15,
+                 length_reduction=0.893, etchant="5.5"):
+
+        super(Ketcham1999, self).__init__(
+                history, use_projected_track,
+                use_confined_track, min_length,
+                length_reduction
+                )
+        self.etchant = etchants[etchant]
+
+    def _get_reduced_length(self, grain, nbins=200):
+        time = (self.history.time * u.megayear).to(u.seconds).magnitude
+        temperature = self.history.temperature
+        kinetic_parameter_type = kinpar[grain.kinetic_parameter_type]
+        kinetic_parameter_value = grain.kinetic_parameter_value
+        
+        reduced_lengths, first_node = ketcham99_annealing_model(
+                time, temperature, kinetic_parameter_type,
+                kinetic_parameter_value, nbins
+                )
+        self.reduced_lengths = reduced_lengths
+        self.first_node = first_node
+        return reduced_lengths, first_node
+
+
+class Ketcham2007(ForwardModel):
+
+    def __init__(self, history, use_projected_track=False,
+                 use_confined_track=False, min_length=2.15,
+                 length_reduction=0.893, etchant="5.5"):
+
+        super(Ketcham2007, self).__init__(
+                history, use_projected_track,
+                use_confined_track, min_length,
+                length_reduction
+                )
+        self.etchant = etchants[etchant]
+
+    def _get_reduced_length(self, grain, nbins=200):
+        time = (self.history.time * u.megayear).to(u.seconds).magnitude
+        temperature = self.history.temperature
+        kinetic_parameter_type = kinpar[grain.kinetic_parameter_type]
+        kinetic_parameter_value = grain.kinetic_parameter_value
+        
+        reduced_lengths, first_node = ketcham07_annealing_model(
+                time, temperature, kinetic_parameter_type,
+                kinetic_parameter_value, nbins, self.etchant
+                )
+        self.reduced_lengths = reduced_lengths
+        self.first_node = first_node
+        return reduced_lengths, first_node
 
 
 class Grain(object):
