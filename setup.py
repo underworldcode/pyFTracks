@@ -1,11 +1,10 @@
 from setuptools import setup, Extension
-#from Cython.Build import cythonize
 import numpy
 from os import path
 
 MAJOR = 0
 MINOR = 1
-MICRO = 5
+MICRO = 6
 ISRELEASED = False
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 
@@ -15,7 +14,9 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 extensions = [Extension("ketcham", ["pyFTracks/ketcham.pyx",
-                                    "pyFTracks/src/ketcham.c"],
+                                    "pyFTracks/src/utilities.c",
+                                    "pyFTracks/src/ketcham2007.c",
+                                    "pyFTracks/src/ketcham1999.c"],
                         include_dirs=["pyFTracks/include"])]
 
 with open('requirements.txt') as f:

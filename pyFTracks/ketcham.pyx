@@ -2,7 +2,7 @@ import cython
 import numpy as np
 cimport numpy as np
 
-cdef extern from "include/ketcham.h":
+cdef extern from "include/utilities.h":
 
     cdef int refine_history(
         double *time, double *temperature, int npoints,
@@ -13,17 +13,22 @@ cdef extern from "include/ketcham.h":
         int usedCf, double *time, double *temperature, double *pdfAxis,
         double *pdf, double *cdf, double  initLength, double min_length,
         double  *redLength)
-    cdef void ketch99_reduced_lengths(
-        double *time, double *temperature,int numTTNodes, double *redLength,
-        double kinPar, int kinParType, int *firstTTNode)
-    cdef void ketch07_reduced_lengths(
-        double *time, double *temperature,int numTTNodes, double *redLength,
-        double kinPar, int kinParType, int *firstTTNode, int etchant)
     cdef void ketcham_calculate_model_age(
         double *time, double *temperature, double  *redLength,
         int numTTNodes, int firstNode, double  *oldestModelAge,
         double *ftModelAge, double stdLengthReduction, double *redDensity)
 
+cdef extern from "include/ketcham1999.h":
+    
+    cdef void ketch99_reduced_lengths(
+        double *time, double *temperature,int numTTNodes, double *redLength,
+        double kinPar, int kinParType, int *firstTTNode)
+
+cdef extern from "include/ketcham2007.h":
+    
+    cdef void ketch07_reduced_lengths(
+        double *time, double *temperature,int numTTNodes, double *redLength,
+        double kinPar, int kinParType, int *firstTTNode, int etchant)
 
 def isothermal_intervals(time, temperature, max_temp_per_step, max_temp_step_near_ta):
 
