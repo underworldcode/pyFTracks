@@ -4,59 +4,76 @@
 
 #define MIN_OBS_RCMOD  0.55
 
-/* Useful constants */
 #define	SECS_PER_MA		3.1556736e13
 #define U238SEC 4.91575e-18
 #define SQRT2PI	2.50662827463
 #define	PDF_NUMSD 4
 
 
-double calculate_annealing_temperature(double abs_gradient){
+/************************************************************************************************
+ * NAME: calculate_annealing_temperature
+ * DESCRIPTION: Calculate the annealing temperature based on absolute temperature gradient
+ */
+double calculate_annealing_temperature(double abs_gradient)
+{
        return 377.67 * pow(abs_gradient, 0.019837);
 }
 
-/*  calculate_reduced_stddev
-	 Calculates the reduced standard deviation of a track population length
-	 from the reduced mean length.  Based on Carlson and Donelick
- */
-double  calculate_reduced_stddev(double redLength,int doProject){
-  if (doProject) return(0.1081 - 0.1642 * redLength + 0.1052 * redLength * redLength);
-  else return(0.4572 - 0.8815 * redLength + 0.4947 * redLength * redLength);
 
+/************************************************************************************************  
+ *
+ *  NAME: calculate_reduced_stddev
+ *  DESCRIPTION: Calculates the reduced standard deviation of a track population length
+ *  from the reduced mean length.  Based on Carlson and Donelick
+ */
+double  calculate_reduced_stddev(double redLength,int doProject)
+{
+    if (doProject){
+        return(0.1081 - 0.1642 * redLength + 0.1052 * redLength * redLength);
+    }
+    else{
+        return(0.4572 - 0.8815 * redLength + 0.4947 * redLength * redLength);
+    } 
 //double  calculate_reduced_stddev(double redLength,int doProject){
 //  if (doProject) return(2.312 - 0.2442 * redLength + 0.008452 * redLength * redLength);
 //  else return(7.464 - 0.8733 * redLength + 0.02858 * redLength * redLength);
 }
 
 
-
-/*  ketcham_age_correction
-    Does the conversion from length to density for the Ketcham et al., 1999 model.
-    The routine is placed "way up here" because it will also be used to estimate
-    bias for population summing.
-
-    Assumes we're passing in a c-axis-projected length
- */
-
-/* The following text is taken from Forward Inverse and Modeling of LT Thermoch Data
- * Low-T Thermochronology: Techniques, Interpretations and Applications (ed. Reiners an Ehlers)
+/*************************************************************************************************
+ *  NAME: correct_observational_bias
  *
- * The observational bias quantifies the relative probability of observation among different
- * fission-track populations calculated by the model. Highly annealed populations are less
- * likely to be detected and measured than less-annealed populations for 2 primary reasons.
- * - Shorter track are less frequently impinged and thus etched
- * - At advanced stage of annealing some proportion of tracks at high angles to the c-axis
- *   may be lost altogether, even though lower-angle tracks remain long
+ *  DESCRIPTION: Does the conversion from length to density for the Ketcham et al., 1999 model.
+ *  
+ *  The routine is also used to estimate bias for population summing.
+ *
+ *  Assumes we're passing in a c-axis-projected length
+ *
+ *  The following text is taken from Forward Inverse and Modeling of LT Thermoch Data
+ *  Low-T Thermochronology: Techniques, Interpretations and Applications (ed. Reiners an Ehlers)
+ *
+ *  The observational bias quantifies the relative probability of observation among different
+ *  fission-track populations calculated by the model. Highly annealed populations are less
+ *  likely to be detected and measured than less-annealed populations for 2 primary reasons.
+ *    - Shorter track are less frequently impinged and thus etched
+ *    - At advanced stage of annealing some proportion of tracks at high angles to the c-axis
+ *      may be lost altogether, even though lower-angle tracks remain long
  * Thus the number of detectable tracks in the more annealed population diminishes, at a rate
  * dispropportionate to measured mean length (Ketcham 2003b). These 2 factors can be approximated
  * in a general way by using an empirical function that relates measured fission-track length to
- * fission-track density (e,g. Green 1998). The following is taken from Ketcham et al 2000 */
+ * fission-track density (e,g. Green 1998). The following is taken from Ketcham et al 2000 
+ */
 
-double ketcham_age_correction(double cparlen){
-  if (cparlen > 0.765) return(1.600 * cparlen - 0.599);
-  if (cparlen >= MIN_OBS_RCMOD) return(9.205 * cparlen * cparlen - 9.157 * cparlen + 2.269);
-  return(0.0);
+double correct_observational_bias(double cparlen)
+
+{
+    if (cparlen > 0.765) return(1.600 * cparlen - 0.599);
+    if (cparlen >= MIN_OBS_RCMOD) return(9.205 * cparlen * cparlen - 9.157 * cparlen + 2.269);
+    return(0.0);
 }
+
+
+
 
 int refine_history(double *time, double *temperature, int npoints,
                    double max_temp_per_step, double max_temp_step_near_ta,
@@ -159,7 +176,7 @@ void ketcham_sum_population(int num_points_pdf, int numTTNodes, int firstTTNode,
     rmLen = usedCf ? 1.396 * redLength[j] - 0.4017 : -1.499 * redLength[j] * redLength[j] + 4.150 * redLength[j] - 1.656;
     rLen = doProject ? redLength[j] : rmLen;
     rStDev = calculate_reduced_stddev(rLen, doProject);
-    obsBias = ketcham_age_correction(redLength[j]);
+    obsBias = correct_observational_bias(redLength[j]);
     calc = weight * obsBias / (rStDev * SQRT2PI);
     if (rLen > 0) {
       for (i = 0; i < num_points_pdf; i++) {
@@ -199,12 +216,12 @@ void ketcham_calculate_model_age(double *time, double *temperature, double  *red
   for (*ftModelAge = 0.0, node = firstNode; node < numTTNodes - 2; node++) {
       
       midLength = (redLength[node] + redLength[node + 1]) / 2.0;
-      *ftModelAge += ketcham_age_correction(midLength) * (time[node] - time[node + 1]);
-      *redDensity += ketcham_age_correction(midLength);
+      *ftModelAge += correct_observational_bias(midLength) * (time[node] - time[node + 1]);
+      *redDensity += correct_observational_bias(midLength);
   }
 
-  *ftModelAge += ketcham_age_correction(redLength[numTTNodes - 2]) * (time[node] - time[node + 1]);
-  *redDensity += ketcham_age_correction(redLength[numTTNodes - 2]); 
+  *ftModelAge += correct_observational_bias(redLength[numTTNodes - 2]) * (time[node] - time[node + 1]);
+  *redDensity += correct_observational_bias(redLength[numTTNodes - 2]); 
   *redDensity /= stdLengthReduction * (numTTNodes-2);
   
   /* Account for length reduction in length standard, convert to Ma */
