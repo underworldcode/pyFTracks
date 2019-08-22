@@ -17,6 +17,7 @@ RUN pip install numpy
 RUN pip install pyFTracks/
 ENV PYTHONPATH="/opt"
 WORKDIR /home
+RUN cp -rf /opt/pyFTracks/docs .
 
 EXPOSE 8888
 
