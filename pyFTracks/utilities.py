@@ -3,7 +3,6 @@ from scipy import stats
 import random
 import sys
 
-
 def drawbinom(I, prob):
     # Look at scipy.stats.binom...option binom.rvs
     """Random draw from binomial distribution
@@ -17,7 +16,6 @@ def drawbinom(I, prob):
         A = np.random.RandomState()
         Ns = A.binomial(I, prob)
     return Ns
-
 
 def create_distribution(xk, pk, name="TLD"):
     return stats.rv_discrete(name=name, values=(xk, pk))

@@ -13,6 +13,11 @@
 /************************************************************************************************
  * NAME: calculate_annealing_temperature
  * DESCRIPTION: Calculate the annealing temperature based on absolute temperature gradient
+ * The total annealing temperature (TA) for F-apatite
+ *  for a given heating or cooling rate (R) is given by the equation:
+ *  
+ *                      Ta = 377.67 * R**0.019837
+ *
  */
 double calculate_annealing_temperature(double abs_gradient)
 {
@@ -74,6 +79,35 @@ double correct_observational_bias(double cparlen)
 
 
 
+/************************************************************************************************
+* NAME: refine_history
+*
+* DESCRIPTION: Interpolate Time Temperature path
+* Takes the time-temperature path specification and subdivides it for
+* calculation in isothermal intervals. 
+* 
+* Reference:
+* 
+* Ketcham, R. A. (2005). Forward and Inverse Modeling of Low-Temperature
+* Thermochronometry Data. Reviews in Mineralogy and Geochemistry, 58(1),
+* 275–314. doi:10.2138/rmg.2005.58.11
+*
+* It is calibrated to facilitate 0.5% accuracy for end-member F-apatite by
+* having a maximum temperature step of 3.5 degrees C when the model temperature
+* is within 10C of the total annealing temperature. Before this cutoff the
+* maximum temperature step required is 8 C. If the overall model tine steps are
+* too large, these more distant requirement may not be meet.
+
+* Quoted text:
+* 
+* "The more segments a time-temperature path is subdivided into, the more accurate
+* the numerical solution will be. Conversely, an excessive number of time steps
+* will slow computation down unnecessarily. The optimal time step size to achieve a desired
+* solution accuracy was examined in detail by Issler (1996b), who demonstrated that time
+* steps should be smaller as the total annealing temperature of apatite is approached.
+* For the Ketcham et al. (1999) annealing model for F-apatite, Ketcham et al. (2000) found that 0.5%
+* precision is assured if there is no step with greater than a 3.5 ºC change within 10 ºC of
+* the F-apatite total annealing temperature.*/ 
 
 int refine_history(double *time, double *temperature, int npoints,
                    double max_temp_per_step, double max_temp_step_near_ta,

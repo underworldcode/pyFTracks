@@ -1,12 +1,12 @@
 import numpy as np
 import pint
-from .annealing import KetchamEtAl
 from .utilities import draw_from_distrib, drawbinom
 from ketcham import ketcham99_annealing_model
 from ketcham import ketcham07_annealing_model
 from ketcham import sum_population
 from ketcham import calculate_model_age
 from .plot import Viewer
+from .grain import Grain
 
 u = pint.UnitRegistry()
 
@@ -27,17 +27,17 @@ class ForwardModel():
         self.min_length = min_length
         self.length_reduction = length_reduction
 
-    def _get_reduced_length(self, grain, nbins=200):
+    def _get_reduced_length(self, sample, nbins=200):
         return
 
-    def _get_distribution(self, grain, nbins=200):
+    def _get_distribution(self, sample, nbins=200):
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
         temperature = self.history.temperature
         
         if self.use_projected_track:
-            track_l0 = grain.l0_projected
+            track_l0 = sample.l0_projected
         else:
-            track_l0 = grain.l0
+            track_l0 = sample.l0
 
         pdf_axis, pdf, cdf = sum_population(
                 time, temperature,
@@ -51,12 +51,12 @@ class ForwardModel():
 
         return self.pdf_axis, self.pdf, self.MTL
 
-    def calculate_age(self, grain, nbins=200):
+    def calculate_age(self, sample, nbins=200):
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
         temperature = self.history.temperature
 
-        self._get_reduced_length(grain, nbins)
-        self._get_distribution(grain, nbins)
+        self._get_reduced_length(sample, nbins)
+        self._get_distribution(sample, nbins)
         oldest_age, ft_model_age, reduced_density = calculate_model_age(
         time, temperature, self.reduced_lengths, 
         self.first_node, self.length_reduction
@@ -92,7 +92,7 @@ class ForwardModel():
         Ni = NsNi - Ns
         return Ns, Ni
 
-    def generate_synthetic_lengths(self, ntl):
+    def generate_synthetic_lengths(self, ntl=100):
         tls = draw_from_distrib(self.pdf_axis, self.pdf, ntl)
         return tls
 
@@ -110,11 +110,11 @@ class Ketcham1999(ForwardModel):
                 )
         self.etchant = etchants[etchant]
 
-    def _get_reduced_length(self, grain, nbins=200):
+    def _get_reduced_length(self, sample, nbins=200):
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
         temperature = self.history.temperature
-        kinetic_parameter_type = kinpar[grain.kinetic_parameter_type]
-        kinetic_parameter_value = grain.kinetic_parameter_value
+        kinetic_parameter_type = kinpar[sample.kinetic_parameter_type]
+        kinetic_parameter_value = sample.kinetic_parameter_value
         
         reduced_lengths, first_node = ketcham99_annealing_model(
                 time, temperature, kinetic_parameter_type,
@@ -138,11 +138,11 @@ class Ketcham2007(ForwardModel):
                 )
         self.etchant = etchants[etchant]
 
-    def _get_reduced_length(self, grain, nbins=200):
+    def _get_reduced_length(self, sample, nbins=200):
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
         temperature = self.history.temperature
-        kinetic_parameter_type = kinpar[grain.kinetic_parameter_type]
-        kinetic_parameter_value = grain.kinetic_parameter_value
+        kinetic_parameter_type = kinpar[sample.kinetic_parameter_type]
+        kinetic_parameter_value = sample.kinetic_parameter_value
         
         reduced_lengths, first_node = ketcham07_annealing_model(
                 time, temperature, kinetic_parameter_type,
@@ -151,100 +151,6 @@ class Ketcham2007(ForwardModel):
         self.reduced_lengths = reduced_lengths
         self.first_node = first_node
         return reduced_lengths, first_node
-
-
-class Grain(object):
-
-    unprojected = {"ETCH_PIT_LENGTH": {"m": 0.283, "b": 15.63},
-                   "CL_PFU": {"m": 0.544, "b": 16.18},
-                   "OH_PFU": {"m": 0.0, "b": 16.18},
-                   "CL_WT_PCT": {"m": 0.13824, "b": 16.288}}
-
-    projected = {"ETCH_PIT_LENGTH": {"m": 0.205, "b": 16.10},
-                 "CL_PFU": {"m": 0.407, "b": 16.49},
-                 "OH_PFU": {"m": 0.000, "b": 16.57},
-                 "CL_WT_PCT": {"m": 0.17317, "b": 16.495}}
-
-    def __init__(self, Ns=None, Ni=None, track_lengths=None, Dpars=None,
-                 Cl=None, name=None):
-        """
-          Grain
-
-          Ns: number of spontaneous tracks
-          Ni: number of induced tracks
-          track_lengths: track length measurements
-          Dpars: Dpar values
-          Cl: Chlorine content
-          name: optional name
-
-        """
-
-        self.name = name
-        self.spontaneous = self.Ns = Ns
-        self.induced = self.Ni = Ni
-        self.track_lengths = track_lengths
-
-        if Dpars:
-            self.kinetic_parameter_type = "ETCH_PIT_LENGTH"
-            self.kinetic_parameter_value = np.mean(Dpars)
-        elif Cl:
-            self.kinetic_parameter_type = "CL_PFU"
-            self.kinetic_parameter_value = np.mean(Cl)
-
-        self._get_initial_track_length()
-
-        if self.track_lengths:
-            self.min_track_lengths = self.MTL = np.mean(self.track_lengths)
-
-    def _get_initial_track_length(self):
-        """
-
-            Returns the initial track length for the population based
-            on the apatite kinetics, using data from experiment H0
-            by W.D.Carlson and R.A.Donelick (UT Austin)
-
-            kinetic_parameter_type: ETCH_PIT_LENGTH, CL_PFU, OH_PFU, CL_WT_PFU
-            kinetic_parameter_value: value of the kinetic parameter
-            use_projected_track: use projected track? default is False
-
-        """
-
-        m = Grain.projected[self.kinetic_parameter_type]["m"]
-        b = Grain.projected[self.kinetic_parameter_type]["b"]
-        self.l0_projected = m * self.kinetic_parameter_value + b
-
-        m = Grain.unprojected[self.kinetic_parameter_type]["m"]
-        b = Grain.unprojected[self.kinetic_parameter_type]["b"]
-        self.l0 = m * self.kinetic_parameter_value + b
-
-        return
-
-
-class Sample(object):
-
-    def __init__(self, grains, coordinates=None,
-                 elevation=None, name=None):
-
-        """
-          Sample
-
-          grains: list of grains
-          coordinates: coordinates of the sample location
-          elevation: elevation of the sample location
-          name: sample name
-        """
-
-        self.name = name
-
-        grains = list(grains)
-        for grain in grains:
-            if not isinstance(grain, Grain):
-                raise ValueError("grains must be a list of Grain instance")
-        self.grains = grains
-        self.ngrains = len(grains)
-
-
-Apatite = Grain
 
 
 def calculate_central_age(Ns, Ni, zeta, seZeta, rhod, seRhod, sigma=0.15):
@@ -315,3 +221,5 @@ def calculate_single_grain_ages(Ns, Ni, rhod, zeta, g=0.5, trf="Linear"):
     Error = sez / 1e6
 
     return Age, Error
+
+

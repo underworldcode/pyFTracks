@@ -59,7 +59,7 @@ WOLF2 = ThermalHistory(
 
 WOLF3 = ThermalHistory(
     name="wolf3",
-    time=u.Quantity([0., 19.5, 19., 100.], u.megayears),
+    time=u.Quantity([0., 19., 19.5, 100.], u.megayears),
     temperature=u.Quantity([10., 10., 60., 60.], u.degC)
 )
 
