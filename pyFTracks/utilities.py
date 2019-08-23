@@ -76,3 +76,62 @@ def AdjustTTHistory(time, temp):
     temp = [elem[1] for elem in newTT]
     return time, temp
 
+def read_mtx_file(filename):
+    """ MTX (Madtrax) file parser """
+    
+    # Check that the extension is actually mtx
+    if filename.split(".")[-1] != "mtx":
+        raise ValueError("Specify and mtx file")
+    
+    lines = open(filename, "r").read().splitlines()
+    lines = (line.strip() for line in lines)
+    
+    data = {}
+    
+    # First Line is the name
+    (data["name"]) = next(lines).split(".")[0]
+    
+    # Skip Second line (not sure what that is)
+    next(lines)
+    
+    # Third line contains count numbers and zeta information
+    # nconstraints is the number of boxes defined to constraint
+    # thermal history
+    
+    line2 = next(lines).split()
+    nconstraints, ntl, ncounts = (int(val) for val in line2[:3])
+    (data["zeta"],
+     data["rhod"],
+     data["nd"]) = (float(val) for val in line2[3:])
+
+    # Skip the constraints
+    for i in range(nconstraints):
+        next(lines)
+    
+    # After the constraints we find:
+    # - The Age and associated error
+    # - The Mean track length and associated error
+    # - The standard deviation and associated error
+        
+    (data["FTage"],
+     data["FTageE"]) = (float(val) for val in next(lines).split())
+    (data["MTL"],
+     data["MTLE"])   = (float(val) for val in next(lines).split())
+    (data["STDEV"],
+     data["STDEVE"]) = (float(val) for val in next(lines).split())
+    
+    # After we find the counts Ns and Ni
+    data["Ns"] = []
+    data["Ni"] = []
+    
+    for row in range(ncounts):
+        Ns, Ni = (int(val) for val in next(lines).split())
+        data["Ns"].append(Ns)
+        data["Ni"].append(Ni)
+    
+    # Finally the track lengths
+    data["TL"] = []
+    for row in range(ntl):
+        data["TL"].append(float(next(lines)))        
+        
+    return data

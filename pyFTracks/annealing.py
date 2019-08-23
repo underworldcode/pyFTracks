@@ -5,7 +5,7 @@ from ketcham import ketcham99_annealing_model
 from ketcham import ketcham07_annealing_model
 from ketcham import sum_population
 from ketcham import calculate_model_age
-from .plot import Viewer
+from .viewer import Viewer
 from .grain import Grain
 
 u = pint.UnitRegistry()

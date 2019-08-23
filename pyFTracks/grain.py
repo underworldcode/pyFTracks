@@ -4,6 +4,8 @@ import numpy as np
 
 class Grain(object):
 
+    # The Following parameters are taken from Carlson et al 1999
+    # Equations 1..4
     unprojected = {"ETCH_PIT_LENGTH": {"m": 0.283, "b": 15.63},
                    "CL_PFU": {"m": 0.544, "b": 16.18},
                    "OH_PFU": {"m": 0.0, "b": 16.18},

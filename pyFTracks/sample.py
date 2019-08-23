@@ -2,6 +2,7 @@ from itertools import count
 from collections import OrderedDict
 from .grain import Grain
 import numpy as np
+from .utilities import read_mtx_file
 
 class Sample(Grain):
 
@@ -214,3 +215,9 @@ class Sample(Grain):
     
         f.close()
         return 0
+
+    def read_from_file(self, filename):
+        data = read_mtx_file(filename)
+        self.Ns = data["Ns"]
+
+
