@@ -3,4 +3,5 @@ include docs/*
 include requirements.txt
 include README.rst
 include setup.cfg
+include pyFTracks/ressources/*.h5
 recursive-include pyFTracks *.c *h *.pyx

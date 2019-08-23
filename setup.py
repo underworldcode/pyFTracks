@@ -32,6 +32,7 @@ setup(
     version=VERSION,
     description='Fission Track Modelling and Analysis with Python',
     ext_modules=extensions,
+    include_package_data=True,
     include_dirs=[numpy.get_include()],
     long_description=long_description,
     url='https://github.com/rbeucher/pyFTracks.git',
@@ -53,7 +54,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
-    packages=["pyFTracks"],
+    packages=["pyFTracks", "pyFTracks/ressources"],
     keywords='geology thermochronology fission-tracks',
     install_requires=requirements,
 
