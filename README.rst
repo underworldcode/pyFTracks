@@ -1,6 +1,6 @@
 
 .. image:: ./docs/images/logo.png
- :align: center
+    :align: center
 
 Fission Track Modelling and Analysis with python
 ============================================================
