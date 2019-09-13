@@ -1,8 +1,10 @@
 from itertools import count
 from collections import OrderedDict
 import numpy as np
+from .sample import Sample
+from pandas import Series
 
-class Grain(object):
+class Grain(Series):
 
     # The Following parameters are taken from Carlson et al 1999
     # Equations 1..4
@@ -17,9 +19,21 @@ class Grain(object):
                  "CL_WT_PCT": {"m": 0.17317, "b": 16.495}}
 
     _ids = count(0)
+    
+    _added_properties = ['id', 'l0_user_defined', 'l0', '_l0']
+    _internal_names = Series._internal_names + _added_properties
+    _internal_names_set = set(_internal_names)
 
-    def __init__(self, counts=None, Ns=None, Ni=None,
-                 track_lengths=None, name="Undefined", l0=None,
+    @property
+    def _constructor(self):
+        return Grain
+
+    @property
+    def _constructor_expanddim(self):
+        return Sample
+
+    def __init__(self, Ns=None, Ni=None,
+                 lengths=None, name="Undefined", l0=None,
                  Dpars=None, Cl=None, projected=True):
         """
           Grain
@@ -35,53 +49,20 @@ class Grain(object):
 
         """
 
-        self._name = name
         self.id = next(self._ids)
+        data = {"Ns": Ns, "Ni": Ni, "lengths": lengths, "Dpars": Dpars}
+        Series.__init__(self, data)
 
-        if counts:
-            self.counts = counts
-            self.Ns = counts[0]
-            self.Ni = counts[1]
-
-        if Ns and Ni:
-            self.Ns = Ns
-            self.Ni = Ni
-
-        self.add_length(track_lengths, True)
+        if l0:
+            self.l0_user_defined = True
+            self.l0 = l0
 
         if Dpars:
             self.kinetic_parameter_type = "ETCH_PIT_LENGTH"
-            self.kinetic_parameter_value = np.mean(Dpars)
         elif Cl:
             self.kinetic_parameter_type = "CL_PFU"
-            self.kinetic_parameter_value = np.mean(Cl)
 
-        self.l0_projected_user_defined = False
-        self.l0_user_defined = False
-        
-        if l0 and projected:
-            self.l0_projected = l0 
-        else:
-            self.l0 = l0
-
-        self.description = ""
     
-    @property
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, name):
-        self._name = name
-    
-    @property
-    def description(self):
-        return self._description
-
-    @description.setter
-    def description(self, value):
-        self._description = value
-
     @property
     def l0(self):
         if not self.l0_user_defined:
@@ -97,54 +78,22 @@ class Grain(object):
             self._l0 = length
         else:
             self._l0 = None
-
-    @property
-    def l0_projected(self):
-        if not self.l0_projected_user_defined:
-            m = Grain.projected[self.kinetic_parameter_type]["m"]
-            b = Grain.projected[self.kinetic_parameter_type]["b"]
-            self._l0_projected = m * self.kinetic_parameter_value + b
-        return self._l0_projected
+#
+#    @property
+#    def l0_projected(self):
+#        if not self.l0_projected_user_defined:
+#            m = Grain.projected[self.kinetic_parameter_type]["m"]
+#            b = Grain.projected[self.kinetic_parameter_type]["b"]
+#            self._l0_projected = m * self.kinetic_parameter_value + b
+#        return self._l0_projected
+#    
+#    @l0_projected.setter
+#    def l0_projected(self, length):
+#        if length:
+#            self.l0_projected_user_defined = True
+#            self._l0_projected = length
+#        else:
+#            self._l0_projected = None
     
-    @l0_projected.setter
-    def l0_projected(self, length):
-        if length:
-            self.l0_projected_user_defined = True
-            self._l0_projected = length
-        else:
-            self._l0_projected = None
-    
-    def add_length(self, length, reset=False):
-        if reset:
-            self.TL = self.track_lengths = []
-        if length:
-            length = [length] if not isinstance(length, list) else length
-            self.TL += length
-            self.mean_track_lengths = self.MTL = np.mean(self.TL)
-        return
-
-    def _repr_html_(self):
-        """_repr_html_
-
-        HTML table describing the Sample.
-        For integration with Jupyter notebook.
-        """
-        params = OrderedDict()
-        params["Name"] = self.name
-        params["Description"] = self.description
-        params["Ns"] = self.Ns
-        params["Ni"] = self.Ni
-        params["Kinetic Parameter"] = self.kinetic_parameter_type
-        params["Kinetic Parameter Value"] = self.kinetic_parameter_value 
-    
-        header = "<table>"
-        footer = "</table>"
-        html = ""
-
-        for key, val in params.items():
-            html += "<tr><td>{0}</td><td>{1}</td></tr>".format(key, val)
-
-        return header + html + footer
-
 Population = Apatite = Crystal = Grain
 

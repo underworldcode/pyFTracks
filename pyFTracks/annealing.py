@@ -6,7 +6,7 @@ from ketcham import ketcham07_annealing_model
 from ketcham import sum_population
 from ketcham import calculate_model_age
 from .viewer import Viewer
-from .grain import Grain
+from .structures import Grain
 from scipy.stats import chi2
 
 u = pint.UnitRegistry()

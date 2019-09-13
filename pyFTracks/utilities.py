@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from scipy import stats
 import random
 import sys
@@ -135,3 +136,14 @@ def read_mtx_file(filename):
         data["TL"].append(float(next(lines)))        
         
     return data
+
+def h5store(filename, df, **kwargs):
+    store = pd.HDFStore(filename)
+    store.put('mydata', df)
+    store.get_storer('mydata').attrs.metadata = kwargs
+    store.close()
+
+def h5load(store):
+    data = store['mydata']
+    metadata = store.get_storer('mydata').attrs.metadata
+    return data, metadata 
