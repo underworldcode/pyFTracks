@@ -13,11 +13,15 @@ RUN pip install --upgrade pip
 
 WORKDIR /opt
 RUN git clone https://github.com/rbeucher/pyFTracks.git
-RUN pip install numpy
+RUN pip install -r pyFTracks/requirements.txt
 RUN pip install pyFTracks/
 ENV PYTHONPATH="/opt"
-WORKDIR /home
+
+RUN useradd -ms /bin/bash jovyan
+USER jovyan
+
+WORKDIR /home/jovyan
 RUN cp -rf /opt/pyFTracks/docs .
 
 EXPOSE 8888
-
+CMD ["jupyter", "notebook", "--ip='0.0.0.0'", "--no-browser"]

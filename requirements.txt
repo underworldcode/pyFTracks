@@ -4,3 +4,5 @@ numpy
 jupyter
 pint
 scipy
+pandas
+pyRadialPlot

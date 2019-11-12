@@ -1,15 +1,13 @@
-  version: '3'
+  version: '3.7'
   services:
     
-    jupyter:
-      environment:
-        - PYTHONPATH=/opt
+    pyFTracks:
       build: 
         context: .
         dockerfile: ./Dockerfile
       container_name: pyFTracks
       image: rbeucher/pyftracks:latest
-      command: sh -c "jupyter notebook --allow-root --ip=0.0.0.0 --port=8888"
+      entrypoint: /bin/sh -c "while sleep 1000; do :; done"
       ports:
         - "8888:8888"
       volumes:
