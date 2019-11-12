@@ -2,4 +2,6 @@ build
 dist
 *.so
 .eggs
+*.egg-info
 material
+*.pyc
