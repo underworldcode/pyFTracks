@@ -32,6 +32,7 @@ Running this code requires the following packages to be installed:
 - Cython
 - pint
 - scipy
+- pandas
 
 Recommended
 -----------
