@@ -29,13 +29,8 @@ Dependencies
 Running this code requires the following packages to be installed:
 
 - Python 2.7.x and above
-- Numpy 1.9 and above
-- Matplotlib
-- Cython
-- pint
-- scipy
-- pandas
-- tables
+
+.. include:: requirements.txt
 
 Recommended
 -----------
