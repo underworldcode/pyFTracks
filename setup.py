@@ -3,7 +3,7 @@ from os import path
 
 MAJOR = 0
 MINOR = 2
-MICRO = 0
+MICRO = 1
 ISRELEASED = False
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 
