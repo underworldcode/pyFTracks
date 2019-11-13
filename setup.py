@@ -2,8 +2,8 @@ from setuptools import setup, Extension
 from os import path
 
 MAJOR = 0
-MINOR = 1
-MICRO = 6
+MINOR = 2
+MICRO = 0
 ISRELEASED = False
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 
