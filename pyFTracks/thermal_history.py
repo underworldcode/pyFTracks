@@ -1,5 +1,5 @@
 import numpy as np
-from ketcham import isothermal_intervals
+from .ketcham import isothermal_intervals
 import pint
 
 u = pint.UnitRegistry()
