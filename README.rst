@@ -35,6 +35,7 @@ Running this code requires the following packages to be installed:
 - pint
 - scipy
 - pandas
+- tables
 
 Recommended
 -----------
