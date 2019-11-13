@@ -22,7 +22,7 @@ cdef extern from "include/ketcham1999.h":
     
     cdef void ketch99_reduced_lengths(
         double *time, double *temperature,int numTTNodes, double *redLength,
-        double kinPar, int kinParType, int *firstTTNode)
+        double kinPar, int kinParType, int *firstTTNode, int etchant)
 
 cdef extern from "include/ketcham2007.h":
     
@@ -53,7 +53,7 @@ def isothermal_intervals(time, temperature, max_temp_per_step, max_temp_step_nea
 def ketcham99_annealing_model(time, temperature,
                               int kinetic_parameter_type,
                               double kinetic_parameter_value,
-                              int nbins):
+                              int nbins, int etchant):
 
     time = np.ascontiguousarray(time)
     temperature = np.ascontiguousarray(temperature)
@@ -70,7 +70,7 @@ def ketcham99_annealing_model(time, temperature,
                             time_memview.shape[0], &reduced_lengths[0],
                             kinetic_parameter_value,
                             kinetic_parameter_type,
-                            first_node)
+                            first_node, etchant)
 
     return np.array(reduced_lengths), first_node[0]
 
