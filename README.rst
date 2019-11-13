@@ -30,7 +30,7 @@ Running this code requires the following packages to be installed:
 
 - Python 2.7.x and above
 
-.. include:: requirements.txt
+.. include:: ./requirements.txt
 
 Recommended
 -----------
