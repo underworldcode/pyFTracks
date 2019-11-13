@@ -7,7 +7,7 @@
         dockerfile: ./Dockerfile
       container_name: pyFTracks
       image: rbeucher/pyftracks:latest
-      entrypoint: /bin/sh -c "while sleep 1000; do :; done"
+      command: "jupyter notebook --ip=0.0.0.0 --no-browser"
       ports:
         - "8888:8888"
       volumes:
