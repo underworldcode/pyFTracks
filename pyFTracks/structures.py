@@ -2,12 +2,13 @@ from itertools import count
 import numpy as np
 from collections import OrderedDict
 from pandas import Series, DataFrame
-from pyRadialPlot import radialplot
+from .radialplot import radialplot
 import pandas as pd
 from .utilities import read_mtx_file, h5load, h5store
 from .age_calculations import calculate_ages
 from .age_calculations import calculate_pooled_age
 from .age_calculations import calculate_central_age
+from .age_calculations import chi_square
 
 unprojected_coefs = {"ETCH_PIT_LENGTH": {"m": 0.283, "b": 15.63},
                "CL_PFU": {"m": 0.544, "b": 16.18},
@@ -22,8 +23,12 @@ projected_coefs = {"ETCH_PIT_LENGTH": {"m": 0.205, "b": 16.10},
 
 class Grain(Series):
 
+    _metadata = ["_track_length_distribution", "track_length_distribution"]
+
     def __init__(self, *args, **kwargs):
         Series.__init__(self, *args, **kwargs)
+        
+        self._track_length_distribution = pd.DataFrame(columns=["bins", "lengths"])
 
     @property
     def _constructor(self):
@@ -32,6 +37,14 @@ class Grain(Series):
     @property
     def _constructor_expanddim(self):
         return Sample
+    
+    @property
+    def track_length_distribution(self):
+        return self._track_length_distribution
+
+    @track_length_distribution.setter
+    def track_length_distribution(self, values):
+        self._track_length_distribution = values
 
     
 class Sample(DataFrame):
@@ -42,7 +55,29 @@ class Sample(DataFrame):
             'central_age_se', 'central_age_se',
             'rhod', 'nd', 'depth', 'elevation',
             'stratigraphic_age', 'stratigraphic_age_name',
-            'deposition_temperature', 'present_day_temperature', 'id']
+            'unit_area_graticule',
+            'deposition_temperature', 'present_day_temperature', 'id',
+            '_track_length_distribution', 'track_length_distribution']
+            
+    def __init__(self, *args, **kwargs):
+       
+        #for element in self._metadata:
+        #    if element in kwargs.keys():
+        #        setattr(self, element, kwargs.pop(element))
+        #    else:
+        #        setattr(self, element, None)
+
+        super(Sample, self).__init__(*args, **kwargs)
+
+        self._track_length_distribution = pd.DataFrame(columns=["bins", "lengths"])
+
+        if self.empty:
+            self.insert(loc=0, column="Ns", value=None)
+            self.insert(loc=1, column="Ni", value=None)
+            self.insert(loc=2, column="A", value=None)
+            self.insert(loc=3, column="Ns/Ni", value=None)
+            self.insert(loc=4, column="RhoS", value=None)
+            self.insert(loc=5, column="RhoI", value=None)
 
     @property
     def _constructor(self):
@@ -62,7 +97,18 @@ class Sample(DataFrame):
             except:
                 pass
         self.__init__(data)
+        self._calculate_statistics()
+        return self
 
+    def _calculate_statistics(self):
+        self["Ns/Ni"] = self.Ns / self.Ni
+        if not hasattr(self, "unit_area_graticule"):
+            self.unit_area_graticule = 1.0
+        if not hasattr(self, "A"):
+            self.A = 1
+        self["RhoS"] = self.Ns / (self.A * self.unit_area_graticule)
+        self["RhoI"] = self.Ni / (self.A * self.unit_area_graticule)
+        self.calculate_ages()
 
     def read_from_radialplotter(self, filename):
         from pyRadialPlot import read_radialplotter_file
@@ -71,6 +117,7 @@ class Sample(DataFrame):
         self.__init__({"Ns": data["Ns"], "Ni": data["Ni"]})
         self.zeta = data["zeta"]
         self.rhod = data["rhod"]
+        self._calculate_statistics()
     
     def calculate_l0_from_Dpars(self, projected=True):
         if projected:
@@ -90,6 +137,14 @@ class Sample(DataFrame):
         self["Ages"] = data["Age(s)"]
         self["Ages Errors"] = data["se(s)"]
 
+    @property
+    def track_length_distribution(self):
+        return self._track_length_distribution
+
+    @track_length_distribution.setter
+    def track_length_distribution(self, values):
+        self._track_length_distribution = values
+
     def calculate_pooled_age(self):
         data = calculate_pooled_age(
                 self.Ns, self.Ni, self.zeta,
@@ -106,6 +161,10 @@ class Sample(DataFrame):
         self.central_age_se = data["se"]
         self.central_age_sigma = data["sigma"]
 
+    def calculate_chi_square(self):
+        self.chi2 = chi_square(self.Ns, self.Ni)
+        return self.chi2
+    
     def _repr_html_(self):
         """_repr_html_
 
@@ -131,11 +190,23 @@ class Sample(DataFrame):
 
         return html + DataFrame._repr_html_(self)
 
+    def apply_forward_model(self, fwd_model, name):
+        self.kinetic_parameter_type = "ETCH_PIT_LENGTH"
+        def func1(row):
+            _, ft_age, reduced_density = fwd_model.solve(
+                row["l0"],
+                self.kinetic_parameter_type,
+                row["Dpars"])
+            return pd.Series({"ft_age": ft_age, "reduced_density": reduced_density})
+        df = self.apply(func1, axis=1)
+        self[name] = df["ft_age"]
+
     def save(self, filename):
         h5store(filename, *self.data_info)
 
-    def radialplot(self, transform="Logarithmic"):
-        return radialplot(self.Ns, self.Ni, self.zeta, self.rhod, transform=transform)
+    def radialplot(self, transform="logarithmic"):
+        return radialplot(Ns=self.Ns, Ni=self.Ni, zeta=self.zeta, zeta_err=self.zeta_error,
+                          rhod=self.rhod, transform=transform)
 
     
 

@@ -6,8 +6,6 @@ from ketcham import ketcham07_annealing_model
 from ketcham import sum_population
 from ketcham import calculate_model_age
 from .viewer import Viewer
-from .structures import Grain
-from scipy.stats import chi2
 
 u = pint.UnitRegistry()
 
@@ -27,19 +25,50 @@ class ForwardModel():
         self.use_confined_track = use_confined_track
         self.min_length = min_length
         self.length_reduction = length_reduction
+        self.annealing_model = None
 
-    def _get_reduced_length(self, sample, nbins=200):
-        return
+    @property
+    def history(self):
+        return self._history
 
-    def _get_distribution(self, sample, nbins=200):
+    @history.setter
+    def history(self, value):
+        self._history = value
+        self.cache_reduced_length = {}
+
+    def _get_reduced_length(self, kinetic_parameter_type,
+                            kinetic_parameter_value, nbins=200):
+        time = (self.history.time * u.megayear).to(u.seconds).magnitude
+        temperature = self.history.temperature
+        kinetic_parameter_type = kinpar[kinetic_parameter_type]
+
+        try:
+            data = self.cache_reduced_length[kinetic_parameter_value]
+        except:
+            data = None
+
+        data = None
+        if data:
+            print("Use cached results")
+            reduced_lengths = data["reduced_lengths"]
+            first_node = data["first_node"]
+        else:
+            reduced_lengths, first_node = self.annealing_model(
+                    time, temperature, kinetic_parameter_type,
+                    kinetic_parameter_value, nbins, self.etchant
+                    )
+            data = {"reduced_lengths": reduced_lengths,
+                    "first_node": first_node}
+            self.cache_reduced_length[kinetic_parameter_value] = data
+
+        self.reduced_lengths = reduced_lengths
+        self.first_node = first_node
+        return reduced_lengths, first_node
+
+    def _get_distribution(self, track_l0, nbins=200):
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
         temperature = self.history.temperature
         
-        if self.use_projected_track:
-            track_l0 = sample.l0_projected
-        else:
-            track_l0 = sample.l0
-
         pdf_axis, pdf, cdf = sum_population(
                 time, temperature,
                 self.reduced_lengths, self.first_node,
@@ -52,12 +81,13 @@ class ForwardModel():
 
         return self.pdf_axis, self.pdf, self.MTL
 
-    def calculate_age(self, sample, nbins=200):
+    def calculate_age(self, track_l0, kinetic_parameter_type,
+                      kinetic_parameter_value, nbins=200):
         time = (self.history.time * u.megayear).to(u.seconds).magnitude
         temperature = self.history.temperature
 
-        self._get_reduced_length(sample, nbins)
-        self._get_distribution(sample, nbins)
+        self._get_reduced_length(kinetic_parameter_type, kinetic_parameter_value, nbins)
+        self._get_distribution(track_l0, nbins)
         oldest_age, ft_model_age, reduced_density = calculate_model_age(
         time, temperature, self.reduced_lengths, 
         self.first_node, self.length_reduction
@@ -110,20 +140,7 @@ class Ketcham1999(ForwardModel):
                 length_reduction
                 )
         self.etchant = etchants[etchant]
-
-    def _get_reduced_length(self, sample, nbins=200):
-        time = (self.history.time * u.megayear).to(u.seconds).magnitude
-        temperature = self.history.temperature
-        kinetic_parameter_type = kinpar[sample.kinetic_parameter_type]
-        kinetic_parameter_value = sample.kinetic_parameter_value
-        
-        reduced_lengths, first_node = ketcham99_annealing_model(
-                time, temperature, kinetic_parameter_type,
-                kinetic_parameter_value, nbins
-                )
-        self.reduced_lengths = reduced_lengths
-        self.first_node = first_node
-        return reduced_lengths, first_node
+        self.annealing_model = ketcham99_annealing_model
 
 
 class Ketcham2007(ForwardModel):
@@ -138,19 +155,4 @@ class Ketcham2007(ForwardModel):
                 length_reduction
                 )
         self.etchant = etchants[etchant]
-
-    def _get_reduced_length(self, sample, nbins=200):
-        time = (self.history.time * u.megayear).to(u.seconds).magnitude
-        temperature = self.history.temperature
-        kinetic_parameter_type = kinpar[sample.kinetic_parameter_type]
-        kinetic_parameter_value = sample.kinetic_parameter_value
-        
-        reduced_lengths, first_node = ketcham07_annealing_model(
-                time, temperature, kinetic_parameter_type,
-                kinetic_parameter_value, nbins, self.etchant
-                )
-        self.reduced_lengths = reduced_lengths
-        self.first_node = first_node
-        return reduced_lengths, first_node
-
-
+        self.annealing_model = ketcham07_annealing_model

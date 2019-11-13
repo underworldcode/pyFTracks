@@ -2,11 +2,13 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 import numpy as np
 from scipy.spatial.distance import cdist
+from matplotlib.backend_bases import MouseButton
 
 
 class Viewer(object):
 
-    def __init__(self, forward_model=None, grain=None):
+    def __init__(self, forward_model=None, kinetic_parameter_type="ETCH_PIT_LENGTH", kinetic_parameter_value=1.65,
+                 track_l0=16.3):
 
         if forward_model:
             self.time = np.array(forward_model.history.input_time)
@@ -18,10 +20,12 @@ class Viewer(object):
         self.original_time = np.copy(self.time)
         self.original_temperature = np.copy(self.temperature)
         self.fwd_model = forward_model
-        self.grain = grain
+        self.kinetic_parameter_value = kinetic_parameter_value
+        self.kinetic_parameter_type = kinetic_parameter_type
+        self.track_l0 = track_l0
 
         self.pind = None  # active point
-        self.epsilon = 5  # max pixel distance
+        self.epsilon = 20  # max pixel distance
         self.init_plot()
 
     def init_plot(self):
@@ -49,7 +53,7 @@ class Viewer(object):
         self.ax1.yaxis.grid(True, which='minor', linestyle='--')
         self.ax1.legend(loc=4, prop={'size': 10})
 
-        self.fwd_model.solve(self.grain)
+        self.fwd_model.solve(self.track_l0, self.kinetic_parameter_type, self.kinetic_parameter_value)
         self._synthetic_lengths = self.fwd_model.generate_synthetic_lengths(100)
         self.ax2.hist(self._synthetic_lengths, range=(0., 20.), bins=20, rwidth=0.8)
         self.ax2.set_ylim(0., 40)
@@ -97,11 +101,11 @@ class Viewer(object):
     def on_press(self, event):
         if event.inaxes is None:
             return
-        if event.button == 1:
+        if event.button == MouseButton.LEFT:
             d, self.pind = self.find_closest_point(event)
             if d[self.pind] >= self.epsilon:
                 self.pind = None
-        if event.button == 2:
+        if event.button == MouseButton.RIGHT:
             d, self.pind = self.find_closest_point(event)
             if d[self.pind] >= self.epsilon:
                 self.pind = None
@@ -189,7 +193,7 @@ class Viewer(object):
         self.fwd_model.history.input_time = np.copy(self.time)
         self.fwd_model.history.input_temperature = np.copy(self.temperature)
         self.fwd_model.history.get_isothermal_intervals()
-        self.fwd_model.solve(self.grain)
+        self.fwd_model.solve(self.track_l0, self.kinetic_parameter_type, self.kinetic_parameter_value)
         self._synthetic_lengths = self.fwd_model.generate_synthetic_lengths(100)
 
     def delete_point(self):
