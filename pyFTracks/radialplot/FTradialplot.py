@@ -259,7 +259,10 @@ class FTRadialplot(Radialplot):
         return t
     
     def _t2z(self, t):
-        
+
+        if t == 0:
+            return 0
+
         if self.transform == "linear":
             return t
         elif self.transform == "logarithmic":
