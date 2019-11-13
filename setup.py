@@ -1,5 +1,4 @@
 from setuptools import setup, Extension
-import numpy
 from os import path
 
 MAJOR = 0
@@ -7,6 +6,14 @@ MINOR = 1
 MICRO = 6
 ISRELEASED = False
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
+
+class get_numpy_include(object):
+    """Returns Numpy's include path with lazy import"""
+
+    def __str__(self):
+        import numpy
+        return numpy.get_include()
+
 
 # Get the long description from the README file
 here = path.abspath(path.dirname(__file__))
@@ -33,7 +40,7 @@ setup(
     description='Fission Track Modelling and Analysis with Python',
     ext_modules=extensions,
     include_package_data=True,
-    include_dirs=[numpy.get_include()],
+    include_dirs=[get_numpy_include()],
     long_description=long_description,
     url='https://github.com/rbeucher/pyFTracks.git',
     author='Romain Beucher',
