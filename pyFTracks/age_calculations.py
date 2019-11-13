@@ -60,12 +60,21 @@ def calculate_ages(Ns, Ni, zeta, seZeta, rhod, Nd):
 
     Ns = np.array(Ns)
     Ni = np.array(Ni)
+    Nd = np.array(Nd)
+
+    def true_divide(val):
+        with np.errstate(divide='ignore', invalid='ignore'):
+            val = np.true_divide(1.0, val)
+            val[val == np.inf] = 0
+            return np.nan_to_num(val)
 
     # Calculate mj
     LAMBDA = 1.55125e-4
     G = 0.5
     t = 1.0 / LAMBDA * np.log(1.0 + G * LAMBDA * zeta * rhod * Ns / Ni)
-    se = t * (1.0 / Ns + 1.0 / Ni + 1 / Nd + seZeta**2)**0.5
+
+    se = (true_divide(Ns) + true_divide(Ni) + 1.0 / Nd + seZeta**2)**0.5
+    se *= t
 
     return {"Age(s)": t, "se(s)": se}
 
