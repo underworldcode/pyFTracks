@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.stats import chi2
 
 def chi_square(Ns, Ni):
     """ Return $\chi^2_{\text stat}$ value and the associate p-value"""
