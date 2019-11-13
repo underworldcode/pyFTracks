@@ -12,4 +12,8 @@
         - "8888:8888"
       volumes:
         - $PWD:/opt/pyFTracks
-        - $PWD/docs:/home
+        - $PWD/docs:/home/jovyan
+        - /tmp/.X11-unix:/tmp/.X11-unix
+      # Link display (set xhost + on localhost)
+      environment:
+        - DISPLAY=unix$DISPLAY

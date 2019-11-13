@@ -5,7 +5,8 @@ RUN apt-get update -qq && \
         bash-completion \
         build-essential \
 	gcc \
-	git && \
+	git \
+	tk8.6 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -21,5 +22,6 @@ USER jovyan
 WORKDIR /home/jovyan
 RUN cp -rf /opt/pyFTracks/docs .
 
+ENV DISPLAY :0
 EXPOSE 8888
 CMD ["jupyter", "notebook", "--ip='0.0.0.0'", "--no-browser"]
