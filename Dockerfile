@@ -13,9 +13,7 @@ RUN pip install --upgrade pip
 
 WORKDIR /opt
 RUN git clone https://github.com/rbeucher/pyFTracks.git
-RUN pip install -r pyFTracks/requirements.txt
-RUN pip install pyFTracks/
-ENV PYTHONPATH="/opt"
+RUN pip install -e pyFTracks/
 
 RUN useradd -ms /bin/bash jovyan
 USER jovyan
