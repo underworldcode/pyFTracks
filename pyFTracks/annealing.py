@@ -1,10 +1,10 @@
 import numpy as np
 import pint
 from .utilities import draw_from_distrib, drawbinom
-from ketcham import ketcham99_annealing_model
-from ketcham import ketcham07_annealing_model
-from ketcham import sum_population
-from ketcham import calculate_model_age
+from .ketcham import ketcham99_annealing_model
+from .ketcham import ketcham07_annealing_model
+from .ketcham import sum_population
+from .ketcham import calculate_model_age
 from .viewer import Viewer
 
 u = pint.UnitRegistry()
