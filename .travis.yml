@@ -2,7 +2,7 @@ language: python
 python:
     - "3.6"
 install:
-    - pip --global-option="build_ext" install .
+    - pip install -e .
 script:
     - python -c "import pyFTracks; print('OK')"
 os:
