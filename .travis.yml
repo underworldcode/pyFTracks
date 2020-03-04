@@ -1,9 +1,8 @@
-language: generic
+language: python
 python:
     - "3.6"
 install:
-    - pip install .
-    - ls
+    - python setup.py build_ext
 script:
     - python -c "import pyFTracks; print('OK')"
 os:
