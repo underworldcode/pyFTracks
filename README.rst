@@ -1,5 +1,5 @@
 
-.. image:: https://https://raw.githubusercontent.com/rbeucher/pyFTracks/master/docs/images/logo.png
+.. image:: https://raw.githubusercontent.com/rbeucher/pyFTracks/master/docs/images/logo.png
     :align: center
 
 ================================================
