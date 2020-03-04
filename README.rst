@@ -2,8 +2,9 @@
 .. image:: https://raw.githubusercontent.com/rbeucher/pyFTracks/master/docs/_static/logo.png?sanitize=true
     :align: center
 
+================================================
 Fission Track Modelling and Analysis with python
-============================================================
+================================================
 
 .. image:: https://img.shields.io/pypi/v/pyftracks.svg
     :target: https://pypi.python.org/pypi/pyftracks
@@ -16,6 +17,7 @@ Fission Track Modelling and Analysis with python
 pyFTracks is a Python utility to calculate fission track
 thermochronological data.
 
+------------
 Installation
 ------------
 
@@ -23,6 +25,7 @@ Installation
 
   pip install pyFTracks
 
+------------
 Dependencies
 ------------
 
@@ -32,13 +35,15 @@ Running this code requires the following packages to be installed:
 
 .. include:: ./requirements.txt
 
+-----------
 Recommended
 -----------
 
 - jupyter
 
+-------
 Contact
 -------
 
-Romain BEUCHER, The University of Melbourne
-romain.beucher@unimelb.edu.au
+Romain BEUCHER, The Australian National University
+romain.beucher@anu.edu.au
