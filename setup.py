@@ -42,6 +42,7 @@ setup(
     include_package_data=True,
     include_dirs=[get_numpy_include()],
     long_description=long_description,
+    long_description_content_type='text/x-rst',
     url='https://github.com/rbeucher/pyFTracks.git',
     author='Romain Beucher',
     author_email='romain.beucher@unimelb.edu.au',
