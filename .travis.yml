@@ -3,6 +3,8 @@ python:
     - "3.6"
 install:
     - pip install .
+script:
+    - python -c "import pyFTracks; print('OK')"
 os:
     - linux
     - osx
