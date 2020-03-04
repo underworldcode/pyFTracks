@@ -32,8 +32,14 @@ Dependencies
 Running this code requires the following packages to be installed:
 
 - Python 2.7.x and above
-
-.. include:: ./requirements.txt
+- Cython==0.29.14
+- matplotlib==3.1.1
+- numpy==1.17.4
+- jupyter
+- pint==0.9
+- scipy==1.3.2
+- pandas==0.25.3
+- tables==3.6.1
 
 -----------
 Recommended
