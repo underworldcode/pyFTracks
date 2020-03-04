@@ -61,7 +61,7 @@ setup(
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
-    packages=["pyFTracks", "pyFTracks/ressources"],
+    packages=["pyFTracks", "pyFTracks/ressources", "pyFTracks/radialplot"],
     keywords='geology thermochronology fission-tracks',
     install_requires=requirements,
 
