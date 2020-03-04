@@ -1,5 +1,5 @@
 
-.. image:: ./docs/images/logo.png
+.. image:: https://github.com/rbeucher/pyFTracks/blob/master/docs/images/logo.png
     :align: center
 
 Fission Track Modelling and Analysis with python
