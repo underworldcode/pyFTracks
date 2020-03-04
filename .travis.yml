@@ -4,6 +4,7 @@ python:
 install:
     - pip install .
 script:
+    - ls /home/travis/build/rbeucher/pyFTracks/pyFTracks/
     - python -c "import pyFTracks; print('OK')"
 os:
     - linux
