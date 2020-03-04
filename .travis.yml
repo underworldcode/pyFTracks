@@ -3,10 +3,6 @@
 
 language: python
 
-python:
-    - "3.8"
-
-
 jobs:
   include:
     # perform a linux build
@@ -23,6 +19,8 @@ jobs:
 
 env:
   global:
+    # Skip building on Python 2.7 on all platforms
+    - CIBW_SKIP="cp27-*"
     - TWINE_USERNAME=__token__
     # Note: TWINE_PASSWORD is set to a PyPI API token in Travis settings
 
