@@ -107,15 +107,14 @@ class Viewer(object):
         if event.button == MouseButton.LEFT:
             d, self.pind = self.find_closest_point(event)
             if d[self.pind] >= self.epsilon:
-                self.pind = None
+                self.add_point(event)
         if event.button == MouseButton.RIGHT:
             d, self.pind = self.find_closest_point(event)
             if d[self.pind] >= self.epsilon:
                 self.pind = None
             self.delete_point()
-        if event.dblclick:
-            d, self.pind = self.find_closest_point(event)
-            self.add_point(event)
+        self.refresh_data()
+        self.update_plot()
 
     def on_release(self, event):
         if event.button != 1:
@@ -152,8 +151,6 @@ class Viewer(object):
                 self.temperature = (
                     np.insert(self.temperature, self.pind + 1, event.ydata)
                 )
-                self.refresh_data()
-                self.update_plot()
 
             if self.pind == self.time.shape[0] - 1:
                 self.time = (
@@ -162,8 +159,6 @@ class Viewer(object):
                 self.temperature = (
                     np.insert(self.temperature, self.pind, event.ydata)
                 )
-                self.refresh_data()
-                self.update_plot()
 
             if (event.xdata < self.time[self.pind + 1] and
                event.xdata > self.time[self.pind - 1]):
@@ -182,8 +177,6 @@ class Viewer(object):
                     self.temperature = (
                         np.insert(self.temperature, self.pind + 1, event.ydata)
                     )
-                self.refresh_data()
-                self.update_plot()
 
     def find_closest_point(self, event):
         tinv = self.ax1.transData
@@ -208,5 +201,4 @@ class Viewer(object):
             return
         self.time = np.delete(self.time, self.pind)
         self.temperature = np.delete(self.temperature, self.pind)
-        self.update_plot()
 
