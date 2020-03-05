@@ -9,6 +9,8 @@ Fission Track Modelling and Analysis with python
 .. image:: https://img.shields.io/pypi/v/pyftracks.svg
     :target: https://pypi.python.org/pypi/pyftracks
     :alt: Pip
+.. image:: https://www.travis-ci.org/rbeucher/pyFTracks.svg?branch=master
+    :alt: Travis
 .. image:: https://mybinder.org/badge_logo.svg
     :target: https://mybinder.org/v2/gh/rbeucher/pyFTracks.git/master
     :alt: Logo
