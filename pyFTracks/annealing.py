@@ -1,5 +1,4 @@
 import numpy as np
-import pint
 from .utilities import draw_from_distrib, drawbinom
 from .ketcham import ketcham99_annealing_model
 from .ketcham import ketcham07_annealing_model
@@ -7,12 +6,12 @@ from .ketcham import sum_population
 from .ketcham import calculate_model_age
 from .viewer import Viewer
 
-u = pint.UnitRegistry()
-
 kinpar = {"ETCH_PIT_LENGTH": 0, "CL_PFU": 1,
           "OH_PFU": 2, "CL_WT_PCT": 3}
 
 etchants = {"5.5": 0, "5.0": 1}
+
+_seconds_in_megayears = 31556925974700
 
 class ForwardModel():
 
@@ -38,7 +37,8 @@ class ForwardModel():
 
     def _get_reduced_length(self, kinetic_parameter_type,
                             kinetic_parameter_value, nbins=200):
-        time = (self.history.time * u.megayear).to(u.seconds).magnitude
+        # Convert from megayears to seconds
+        time = self.history.time * _seconds_in_megayears 
         temperature = self.history.temperature
         kinetic_parameter_type = kinpar[kinetic_parameter_type]
 
@@ -66,7 +66,8 @@ class ForwardModel():
         return reduced_lengths, first_node
 
     def _get_distribution(self, track_l0, nbins=200):
-        time = (self.history.time * u.megayear).to(u.seconds).magnitude
+        # Convert from megayears to seconds
+        time = self.history.time * _seconds_in_megayears 
         temperature = self.history.temperature
         
         pdf_axis, pdf, cdf = sum_population(
@@ -83,7 +84,8 @@ class ForwardModel():
 
     def calculate_age(self, track_l0, kinetic_parameter_type,
                       kinetic_parameter_value, nbins=200):
-        time = (self.history.time * u.megayear).to(u.seconds).magnitude
+        # Convert from megayears to seconds
+        time = self.history.time * _seconds_in_megayears 
         temperature = self.history.temperature
 
         self._get_reduced_length(kinetic_parameter_type, kinetic_parameter_value, nbins)

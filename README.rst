@@ -47,7 +47,6 @@ check that you have the following packages installed on your system:
 - Cython >= 0.29.14
 - matplotlib >= 3.1.1
 - numpy >= 1.17.4
-- pint >= 0.9
 - scipy >= 1.3.2
 - pandas >= 0.25.3
 - tables >= 3.6.1

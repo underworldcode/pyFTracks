@@ -1,20 +1,22 @@
 import numpy as np
 from .ketcham import isothermal_intervals
-import pint
-
-u = pint.UnitRegistry()
-
 
 class ThermalHistory(object):
     """Class defining a thermal history"""
 
     def __init__(self, time, temperature, name="unknown"):
-        self.name = name
-        self.input_time = time.to(u.megayears)
-        self.input_temperature = temperature.to_base_units()
+        """ 
+         time: list of time points in Myr.
+         temperature: list of temperature points in deg Kelvin.
+         name: a name for the thermal-history.
 
-        self.time = self.input_time.magnitude
-        self.temperature = self.input_temperature.magnitude
+        """
+        self.name = name
+        self.input_time = time
+        self.input_temperature = temperature
+
+        self.time = self.input_time
+        self.temperature = self.input_temperature
 
         self.maxT = max(temperature)
         self.minT = min(temperature)
@@ -47,30 +49,30 @@ class ThermalHistory(object):
 # Some useful thermal histories
 WOLF1 = ThermalHistory(
     name="wolf1",
-    time=u.Quantity([0., 43., 44., 100.], u.megayears),
-    temperature=u.Quantity([10., 10., 130., 130.], u.degC)
+    time=[0., 43., 44., 100.],
+    temperature=[283.15, 283.15, 403.15, 403.15]
 )
 
 WOLF2 = ThermalHistory(
     name="wolf2",
-    time=u.Quantity([0., 100.], u.megayears),
-    temperature=u.Quantity([10., 130], u.degC)
+    time=[0., 100.],
+    temperature=[283.15, 403.15]
 )
 
 WOLF3 = ThermalHistory(
     name="wolf3",
-    time=u.Quantity([0., 19., 19.5, 100.], u.megayears),
-    temperature=u.Quantity([10., 10., 60., 60.], u.degC)
+    time=[0., 19., 19.5, 100.],
+    temperature=[283.15, 283.15, 333.15, 333.15]
 )
 
 WOLF4 = ThermalHistory(
     name="wolf4",
-    time=u.Quantity([0., 24., 76., 100.], u.megayears),
-    temperature=u.Quantity([10., 60., 60., 100],  u.degC)
+    time=[0., 24., 76., 100.],
+    temperature=[283.15, 333.15, 333.15, 373.15]
 )
 
 WOLF5 = ThermalHistory(
     name="wolf5",
-    time=u.Quantity([0., 5., 100.], u.megayears),
-    temperature=u.Quantity([10., 64., 18.], u.degC)
+    time=[0., 5., 100.],
+    temperature=[283.15, 373.15, 291.15]
 )
