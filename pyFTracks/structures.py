@@ -61,23 +61,14 @@ class Sample(DataFrame):
             
     def __init__(self, *args, **kwargs):
        
-        #for element in self._metadata:
-        #    if element in kwargs.keys():
-        #        setattr(self, element, kwargs.pop(element))
-        #    else:
-        #        setattr(self, element, None)
-
         super(Sample, self).__init__(*args, **kwargs)
 
         self._track_length_distribution = pd.DataFrame(columns=["bins", "lengths"])
 
-        if self.empty:
-            self.insert(loc=0, column="Ns", value=None)
-            self.insert(loc=1, column="Ni", value=None)
-            self.insert(loc=2, column="A", value=None)
-            self.insert(loc=3, column="Ns/Ni", value=None)
-            self.insert(loc=4, column="RhoS", value=None)
-            self.insert(loc=5, column="RhoI", value=None)
+        columns = ["Ns", "Ni", "A"]
+        for index, column in enumerate(columns):
+            if column not in self.columns:
+                self.insert(loc=index, column=column, value=None)
 
     @property
     def _constructor(self):
@@ -97,10 +88,11 @@ class Sample(DataFrame):
             except:
                 pass
         self.__init__(data)
-        self._calculate_statistics()
+        self.calculate_ratios()
+        self.calculate_ages()
         return self
 
-    def _calculate_statistics(self):
+    def calculate_ratios(self):
         self["Ns/Ni"] = self.Ns / self.Ni
         if not hasattr(self, "unit_area_graticule"):
             self.unit_area_graticule = 1.0
@@ -108,7 +100,7 @@ class Sample(DataFrame):
             self.A = 1
         self["RhoS"] = self.Ns / (self.A * self.unit_area_graticule)
         self["RhoI"] = self.Ni / (self.A * self.unit_area_graticule)
-        self.calculate_ages()
+        return self
 
     def read_from_radialplotter(self, filename):
         from pyRadialPlot import read_radialplotter_file
@@ -131,11 +123,18 @@ class Sample(DataFrame):
         self["l0"] = m * self.Dpars + b
 
     def calculate_ages(self):
+        required = ["zeta", "zeta_error", "rhod", "nd"]
+        for arg in required:
+            if not hasattr(self, arg):
+                raise ValueError("""Missing argument {0}""".format(arg))
+
         data =  calculate_ages(
                 self.Ns, self.Ni, self.zeta, 
                 self.zeta_error, self.rhod, self.nd)
         self["Ages"] = data["Age(s)"]
         self["Ages Errors"] = data["se(s)"]
+        return {"Ages": list(self["Ages"]), 
+                "Ages Errors": list(self["Ages Errors"])}
 
     @property
     def track_length_distribution(self):
@@ -151,6 +150,8 @@ class Sample(DataFrame):
                 self.zeta_error, self.rhod, self.nd)
         self.pooled_age = data["Pooled Age"]
         self.pooled_age_se = data["se"]
+        return {"Pooled Age": self.pooled_age,
+                "se": self.pooled_age_se}
 
     def calculate_central_age(self):
         data = calculate_central_age(
@@ -160,6 +161,9 @@ class Sample(DataFrame):
         self.central_age = data["Central"]
         self.central_age_se = data["se"]
         self.central_age_sigma = data["sigma"]
+        return {"Central": self.central_age,
+                "se": self.central_age_se,
+                "sigma": self.central_age_sigma}
 
     def calculate_chi_square(self):
         self.chi2 = chi_square(self.Ns, self.Ni)

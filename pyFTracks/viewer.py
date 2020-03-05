@@ -7,7 +7,10 @@ from matplotlib.backend_bases import MouseButton
 
 class Viewer(object):
 
-    def __init__(self, forward_model=None, kinetic_parameter_type="ETCH_PIT_LENGTH", kinetic_parameter_value=1.65,
+    def __init__(self, forward_model=None,
+                 sample=None,
+                 kinetic_parameter_type="ETCH_PIT_LENGTH",
+                 kinetic_parameter_value=1.65,
                  track_l0=16.3):
 
         if forward_model:
@@ -23,6 +26,7 @@ class Viewer(object):
         self.kinetic_parameter_value = kinetic_parameter_value
         self.kinetic_parameter_type = kinetic_parameter_type
         self.track_l0 = track_l0
+        self.sample = sample
 
         self.pind = None  # active point
         self.epsilon = 20  # max pixel distance
