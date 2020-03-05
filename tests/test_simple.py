@@ -56,3 +56,9 @@ def test_chi2_test():
     Ni = [41, 22, 63, 71, 90, 7, 14, 41, 49, 79, 52, 76, 74, 66, 39, 44, 86, 90, 91, 41]
     chi2 = FT.chi2_test(Ns, Ni)
     assert chi2 == pytest.approx(0.9292, rel=1e-3)
+
+#def test_miller_sample():
+#    from pyFTracks.ressources import Miller
+#    assert Miller.central_age == pytest.approx(175.5672, rel=0.001)
+#    assert Miller.central_age_se == pytest.approx(8.51013)
+#    assert Miller.central_age_sigma == pytest.approx(5.1978e-5, rel=1e-7)

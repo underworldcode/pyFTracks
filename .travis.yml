@@ -30,7 +30,6 @@ install:
 script:
   # build the wheels, put them into './wheelhouse'
   - python -m cibuildwheel --output-dir wheelhouse
-  - python -m pytest .
 
 after_success:
   # if the release was tagged, upload them to PyPI
