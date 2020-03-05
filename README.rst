@@ -14,42 +14,65 @@ Fission Track Modelling and Analysis with python
     :alt: Logo
 
 
-pyFTracks is a Python utility to calculate fission track
-thermochronological data.
+pyFTracks is a Python utility which predicts Fission-track ages and track-lengths
+distributions for some given thermal-histories and given kinetic parameters.
 
 ------------
 Installation
 ------------
 
+The code is available on pypi and should work on any Linux distributions, MacOSX and Windows 10.
+To install it just run:
+
 .. code:: bash
 
   pip install pyFTracks
+
+in the console.
+
+You can install the package from the latest github source by doing:
+
+.. code:: bash
+
+  pip install git+https://github.com/rbeucher/pyFTracks.git
 
 ------------
 Dependencies
 ------------
 
-Running this code requires the following packages to be installed:
+The pip install should take care of the dependencies, if not you might want to
+check that you have the following packages installed on your system:
 
-- Python 2.7.x and above
-- Cython==0.29.14
-- matplotlib==3.1.1
-- numpy==1.17.4
-- jupyter
-- pint==0.9
-- scipy==1.3.2
-- pandas==0.25.3
-- tables==3.6.1
+- Python >= 3.5.x
+- Cython >= 0.29.14
+- matplotlib >= 3.1.1
+- numpy >= 1.17.4
+- pint >= 0.9
+- scipy >= 1.3.2
+- pandas >= 0.25.3
+- tables >= 3.6.1
 
 -----------
 Recommended
 -----------
+We recommend using Jupyter:
 
 - jupyter
+
+---------
+Licensing
+---------
+
+pyFTracks is an open-source project licensed under the MiT License. See LICENSE.md for details.
+
+------------
+Contributing
+------------
 
 -------
 Contact
 -------
 
-Romain BEUCHER, The Australian National University
+Dr Romain BEUCHER, 
+The Australian National University
 romain.beucher@anu.edu.au
