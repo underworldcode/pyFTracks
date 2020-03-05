@@ -84,8 +84,6 @@ class Viewer(object):
                                     self.on_motion)
 
     def update_plot(self):
-        if self.time.shape[0] >= 2:
-            self.refresh_data()
         self.l.set_ydata(self.temperature)
         self.l.set_xdata(self.time)
         self.m2.set_ydata(self.fwd_model.pdf)
@@ -100,6 +98,7 @@ class Viewer(object):
     def reset(self, event):
         self.temperature = np.copy(self.original_temperature)
         self.time = np.copy(self.original_time)
+        self.refresh_data()
         self.update_plot()
 
     def on_press(self, event):
@@ -122,6 +121,8 @@ class Viewer(object):
         if event.button != 1:
             return
         self.pind = None
+        self.refresh_data()
+        self.update_plot()
 
     def on_motion(self, event):
         if self.pind is None:
@@ -139,7 +140,6 @@ class Viewer(object):
                event.xdata > self.time[self.pind - 1]):
                 self.temperature[self.pind] = event.ydata
                 self.time[self.pind] = event.xdata
-
         self.update_plot()
 
     def add_point(self, event):
@@ -152,6 +152,7 @@ class Viewer(object):
                 self.temperature = (
                     np.insert(self.temperature, self.pind + 1, event.ydata)
                 )
+                self.refresh_data()
                 self.update_plot()
 
             if self.pind == self.time.shape[0] - 1:
@@ -161,6 +162,7 @@ class Viewer(object):
                 self.temperature = (
                     np.insert(self.temperature, self.pind, event.ydata)
                 )
+                self.refresh_data()
                 self.update_plot()
 
             if (event.xdata < self.time[self.pind + 1] and
@@ -180,6 +182,7 @@ class Viewer(object):
                     self.temperature = (
                         np.insert(self.temperature, self.pind + 1, event.ydata)
                     )
+                self.refresh_data()
                 self.update_plot()
 
     def find_closest_point(self, event):
