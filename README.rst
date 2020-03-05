@@ -17,6 +17,11 @@ Fission Track Modelling and Analysis with python
 pyFTracks is a Python utility which predicts Fission-track ages and track-lengths
 distributions for some given thermal-histories and given kinetic parameters.
 
+
+.. image:: https://raw.githubusercontent.com/rbeucher/pyFTracks/master/docs/images/image1.png
+    :align: center
+
+
 ------------
 Installation
 ------------
