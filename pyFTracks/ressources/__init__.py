@@ -6,5 +6,5 @@ from pathlib import Path
 
 from pyFTracks import Sample
 
-Miller1995 = Sample().read_from_hdf5(Path(__file__).parent / "Miller.h5")
+Miller = Sample().read_from_hdf5(Path(__file__).parent / "Miller.h5")
 Gleadow = Sample().read_from_hdf5(Path(__file__).parent / "Gleadow.h5")
