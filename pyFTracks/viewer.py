@@ -126,6 +126,7 @@ class Viewer(object):
     def reset(self, event):
         self.temperature = np.copy(self.original_temperature)
         self.time = np.copy(self.original_time)
+        self.fwd_model.pdf *= 0.
         self.refresh_data()
         self.update_plot()
 
@@ -190,9 +191,10 @@ class Viewer(object):
     def refresh_data(self):
         self.fwd_model.history.input_time = np.copy(self.time)
         self.fwd_model.history.input_temperature = np.copy(self.temperature)
-        self.fwd_model.history.get_isothermal_intervals()
-        self.fwd_model.solve(self.track_l0, self.kinetic_parameter_type, self.kinetic_parameter_value)
-        self._synthetic_lengths = self.fwd_model.generate_synthetic_lengths(100)
+        if self.time.shape[0] > 1:
+            self.fwd_model.history.get_isothermal_intervals()
+            self.fwd_model.solve(self.track_l0, self.kinetic_parameter_type, self.kinetic_parameter_value)
+        #self._synthetic_lengths = self.fwd_model.generate_synthetic_lengths(100)
 
     def delete_point(self):
         if not self.pind:
