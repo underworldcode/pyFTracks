@@ -6,6 +6,19 @@ from matplotlib.backend_bases import MouseButton
 from .thermal_history import ThermalHistory
 
 
+class Cursor(object):
+    def __init__(self, ax):
+        self.ax = ax
+        # text location in axes coords
+        self.txt = ax.text(0.05, 0.95, '', transform=ax.transAxes)
+
+    def mouse_move(self, event):
+        if not event.inaxes:
+            return
+        x, y = event.xdata, event.ydata
+        self.txt.set_text('Time=%1.2f Myr, Temp=%1.2f C' % (x, y))
+        self.ax.figure.canvas.draw()
+
 class Viewer(object):
 
     def __init__(self,history=None,
@@ -41,11 +54,13 @@ class Viewer(object):
 
         self.pind = None  # active point
         self.epsilon = 1
+
         self.init_plot()
 
     def init_plot(self):
 
         self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2, figsize=(9.0, 8.0))
+        self.cursor = Cursor(self.ax1)
 
         self.ax1.plot(
             self.original_time,
@@ -105,6 +120,8 @@ class Viewer(object):
                                     self.on_release)
         self.fig.canvas.mpl_connect('motion_notify_event',
                                     self.on_motion)
+        self.fig.canvas.mpl_connect('motion_notify_event',
+                                    self.cursor.mouse_move)
 
     def update_plot(self):
         self.l.set_ydata(self.temperature)
