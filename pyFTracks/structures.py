@@ -1,7 +1,7 @@
 from itertools import count
 import numpy as np
 from collections import OrderedDict
-from pandas import Series, DataFrame
+from pandas import DataFrame, Series
 from .radialplot import radialplot
 import pandas as pd
 from .utilities import read_mtx_file, h5load, h5store
@@ -23,12 +23,10 @@ projected_coefs = {"ETCH_PIT_LENGTH": {"m": 0.205, "b": 16.10},
 
 class Grain(Series):
 
-    _metadata = ["_track_length_distribution", "track_length_distribution"]
+    _metadata = ['_track_length_distribution', 'track_length_distribution']
 
     def __init__(self, *args, **kwargs):
         Series.__init__(self, *args, **kwargs)
-        
-        self._track_length_distribution = pd.DataFrame(columns=["bins", "lengths"])
 
     @property
     def _constructor(self):
@@ -37,15 +35,15 @@ class Grain(Series):
     @property
     def _constructor_expanddim(self):
         return Sample
-    
+
     @property
-    def track_length_distribution(self):
-        return self._track_length_distribution
+    def zeta(self):
+        return self._zeta
 
-    @track_length_distribution.setter
-    def track_length_distribution(self, values):
-        self._track_length_distribution = values
-
+    @zeta.setter
+    def zeta(self, value):
+        self._zeta = value
+    
     
 class Sample(DataFrame):
 
@@ -61,18 +59,13 @@ class Sample(DataFrame):
             
     def __init__(self, *args, **kwargs):
        
-        super(Sample, self).__init__(*args, **kwargs)
+        super(Sample, self).__init__(columns=["Ns", "Ni", "A"], *args, **kwargs)
 
         self._track_length_distribution = pd.DataFrame(columns=["bins", "lengths"])
 
-        columns = ["Ns", "Ni", "A"]
-        for index, column in enumerate(columns):
-            if column not in self.columns:
-                self.insert(loc=index, column=column, value=None)
-
     @property
     def _constructor(self):
-        return Sample
+        return DataFrame
 
     @property
     def _constructor_sliced(self):
@@ -87,7 +80,7 @@ class Sample(DataFrame):
                 setattr(self, val, metadata.pop(key))
             except:
                 pass
-        self.__init__(data)
+        self.__init__(data=data)
         self.calculate_ratios()
         self.calculate_ages()
         return self
@@ -183,8 +176,8 @@ class Sample(DataFrame):
         #params["Stratigraphic Age Name"] = self.stratigraphic_age_name
         #params["Deposition Temperature"] = self.deposition_temperature
         #params["Present Day Temperature"] = self.present_day_temperature
-        #params["Total Ns"] = sum(self.Ns)
-        #params["Total Ni"] = sum(self.Ni)
+        params["Total Ns"] = sum(self.Ns)
+        params["Total Ni"] = sum(self.Ni)
     
         html = ""
 
@@ -192,7 +185,7 @@ class Sample(DataFrame):
             if not val: val = ""
             html += "<div>{0}: {1}</div>".format(key, val)
 
-        return html + DataFrame._repr_html_(self)
+        return DataFrame._repr_html_(self) + html
 
     def apply_forward_model(self, fwd_model, name):
         self.kinetic_parameter_type = "ETCH_PIT_LENGTH"

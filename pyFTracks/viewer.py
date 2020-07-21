@@ -17,16 +17,13 @@ class Cursor(object):
             return
         x, y = event.xdata, event.ydata
         self.txt.set_text('Time=%1.2f Myr, Temp=%1.2f C' % (x, y))
-        self.ax.figure.canvas.draw()
+        self.ax.figure.canvas.draw_idle()
 
 class Viewer(object):
 
     def __init__(self,history=None,
-                 forward_model=None,
+                 annealing_model=None,
                  sample=None,
-                 kinetic_parameter_type="ETCH_PIT_LENGTH",
-                 kinetic_parameter_value=1.65,
-                 track_l0=16.3,
                  present_temperature=293.15):
 
         if history:
@@ -40,16 +37,9 @@ class Viewer(object):
             self.temperature = np.array([self.present_temperature])
             self.history = ThermalHistory(self.time, self.temperature) 
 
-        self.fwd_model = forward_model
-        if not self.fwd_model:
-            from .annealing import Ketcham2007
-            self.fwd_model = Ketcham2007(self.history)
-
+        self.annealing_model = annealing_model
         self.original_time = np.copy(self.time)
         self.original_temperature = np.copy(self.temperature)
-        self.kinetic_parameter_value = kinetic_parameter_value
-        self.kinetic_parameter_type = kinetic_parameter_type
-        self.track_l0 = track_l0
         self.sample = sample
 
         self.pind = None  # active point
@@ -87,11 +77,12 @@ class Viewer(object):
         self.ax1.yaxis.grid(True, which='minor', linestyle='--')
         self.ax1.legend(loc=4, prop={'size': 10})
 
-        if self.fwd_model:
-            self.fwd_model.solve(self.track_l0, self.kinetic_parameter_type, self.kinetic_parameter_value)
-            self.m2, = self.ax2.plot(self.fwd_model.pdf_axis, self.fwd_model.pdf, color="r")
-            age_label = self.fwd_model.ft_model_age
-            MTL_label = self.fwd_model.MTL
+        if self.annealing_model:
+            self.annealing_model.history = self.history
+            self.annealing_model.calculate_age()
+            self.m2, = self.ax2.plot(self.annealing_model.pdf_axis, self.annealing_model.pdf, color="r")
+            age_label = self.annealing_model.ft_model_age
+            MTL_label = self.annealing_model.MTL
         else:
             self.ax2.plot()
             age_label = 0.0
@@ -107,8 +98,6 @@ class Viewer(object):
         self.ax2.set_ylim(0., 0.05)
         self.ax3 = self.ax2.twinx()
         self.ax3.set_ylim(0., 40)
-        #self._synthetic_lengths = self.fwd_model.generate_synthetic_lengths(100)
-        #self.ax3.hist(self._synthetic_lengths, range=(0., 20.), bins=20, rwidth=0.8)
 
         self.axres = plt.axes([0.84, 0.05, 0.12, 0.02])
         self.bres = Button(self.axres, 'Reset')
@@ -128,9 +117,9 @@ class Viewer(object):
         self.l.set_xdata(self.time)
 
         if self.history:
-            self.m2.set_ydata(self.fwd_model.pdf)
-            age_label = self.fwd_model.ft_model_age
-            MTL_label = self.fwd_model.MTL
+            self.m2.set_ydata(self.annealing_model.pdf)
+            age_label = self.annealing_model.ft_model_age
+            MTL_label = self.annealing_model.MTL
         else:
             self.ax2.plot()
             age_label = 0.0
@@ -143,7 +132,7 @@ class Viewer(object):
     def reset(self, event):
         self.temperature = np.copy(self.original_temperature)
         self.time = np.copy(self.original_time)
-        self.fwd_model.pdf *= 0.
+        self.annealing_model.pdf *= 0.
         self.refresh_data()
         self.update_plot()
 
@@ -206,12 +195,11 @@ class Viewer(object):
         return d, ind
 
     def refresh_data(self):
-        self.fwd_model.history.input_time = np.copy(self.time)
-        self.fwd_model.history.input_temperature = np.copy(self.temperature)
+        self.annealing_model.history.input_time = np.copy(self.time)
+        self.annealing_model.history.input_temperature = np.copy(self.temperature)
         if self.time.shape[0] > 1:
-            self.fwd_model.history.get_isothermal_intervals()
-            self.fwd_model.solve(self.track_l0, self.kinetic_parameter_type, self.kinetic_parameter_value)
-        #self._synthetic_lengths = self.fwd_model.generate_synthetic_lengths(100)
+            self.annealing_model.history.get_isothermal_intervals()
+            self.annealing_model.calculate_age()
 
     def delete_point(self):
         if not self.pind:
