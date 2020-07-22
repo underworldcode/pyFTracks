@@ -1,4 +1,6 @@
-# pyFTracks: Fission Track Modelling with Python
+pyFTracks: Fission Track Modelling with Python
+==============================================
+
 
 .. toctree::
    :maxdepth: 2
