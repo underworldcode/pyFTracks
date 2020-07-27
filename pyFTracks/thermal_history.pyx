@@ -1,5 +1,15 @@
 import numpy as np
-from .ketcham import isothermal_intervals
+import cython
+import numpy as np
+cimport numpy as np
+
+cdef extern from "include/utilities.h":
+
+    cdef int refine_history(
+        double *time, double *temperature, int npoints,
+        double max_temp_per_step, double max_temp_step_near_ta,
+        double *new_time, double *new_temperature, int *new_npoints)
+
 
 class ThermalHistory(object):
     """Class defining a thermal history"""
@@ -40,11 +50,27 @@ class ThermalHistory(object):
         temperature is within 10 degrees of the total annealing temperature.
         Before this cutoff the maximum temperature step required is 8C
         """
-        self.time, self.temperature = isothermal_intervals(
-            self.input_time, self.input_temperature, max_temperature_per_step,
-            max_temperature_step_near_ta)
-        return
 
+        time = np.ascontiguousarray(self.input_time)
+        temperature = np.ascontiguousarray(self.input_temperature)
+
+        cdef double[::1] time_memview = time
+        cdef double[::1] temperature_memview = temperature
+        cdef double[::1] new_time = np.ndarray((200))
+        cdef double[::1] new_temperature = np.ndarray((200))
+        cdef double cmax_temp_per_step = max_temperature_per_step
+        cdef double cmax_temp_step_near_ta = max_temperature_step_near_ta
+        cdef int* new_npoints
+        cdef int a=0
+
+        new_npoints = &a
+
+        refine_history(&time_memview[0], &temperature_memview[0], time_memview.shape[0],
+                       cmax_temp_per_step, cmax_temp_step_near_ta,
+                       &new_time[0], &new_temperature[0], new_npoints)
+        self.time = np.array(new_time)[:new_npoints[0]]
+        self.temperature = np.array(new_temperature)[:new_npoints[0]]
+        return self.time, self.temperature
 
 # Some useful thermal histories
 WOLF1 = ThermalHistory(
