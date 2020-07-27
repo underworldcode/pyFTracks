@@ -114,26 +114,26 @@ def test_chi2_test():
     assert chi2 == pytest.approx(0.9292, rel=1e-3)
 
 def test_ketcham_1999_Dpar_to_rmr0():
-    from pyFTracks.annealing_model import Ketcham1999
+    from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import WOLF1
-    model = Ketcham1999(WOLF1, kinetic_parameter=0.3, kinetic_parameter_type="ETCH_PIT_LENGTH")
+    model = Ketcham1999()
     assert model.convert_Dpar_to_rmr0(1.0) == pytest.approx(0.84)
     assert model.convert_Dpar_to_rmr0(1.74) == pytest.approx(0.84)
     assert model.convert_Dpar_to_rmr0(5.0) == pytest.approx(0.)
     assert model.convert_Dpar_to_rmr0(2.1) == pytest.approx(0.79962206086744075)
 
 def test_ketcham_1999_clapfu_to_rmr0():
-    from pyFTracks.annealing_model import Ketcham1999
+    from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import WOLF1
-    model = Ketcham1999(WOLF1, kinetic_parameter=0.3, kinetic_parameter_type="ETCH_PIT_LENGTH")
+    model = Ketcham1999()
     assert(model.convert_Cl_pfu_to_rmr0(0.130), 0.)
     assert(model.convert_Cl_pfu_to_rmr0(0.7), 0.30169548259180623)
     assert(model.convert_Cl_pfu_to_rmr0(0.4), 0.6288689335789452)
 
 def test_ohapfu_to_rmr0():
-    from pyFTracks.annealing_model import Ketcham1999
+    from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import WOLF1
-    model = Ketcham1999(WOLF1, kinetic_parameter=0.3, kinetic_parameter_type="ETCH_PIT_LENGTH")
+    model = Ketcham1999()
     assert(model.convert_OH_pfu_to_rmr0(0.9), 0.)
     assert(model.convert_OH_pfu_to_rmr0(0.7), 0.30169548259180623)
     assert(model.convert_OH_pfu_to_rmr0(0.4), 0.6288689335789452)

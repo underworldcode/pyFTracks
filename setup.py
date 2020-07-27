@@ -20,10 +20,13 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.rst')) as f:
     long_description = f.read()
 
-extensions = [Extension("pyFTracks.ketcham", ["pyFTracks/ketcham.pyx",
+extensions = [Extension("pyFTracks.annealing", ["pyFTracks/annealing.pyx",
                                     "pyFTracks/src/utilities.c",
                                     "pyFTracks/src/ketcham2007.c",
                                     "pyFTracks/src/ketcham1999.c"],
+                        include_dirs=["pyFTracks/include"]),
+             Extension("pyFTracks.thermal_history", ["pyFTracks/thermal_history.pyx",
+                                    "pyFTracks/src/utilities.c"],
                         include_dirs=["pyFTracks/include"])]
 
 with open('requirements.txt') as f:

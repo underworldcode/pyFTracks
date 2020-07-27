@@ -1,10 +1,34 @@
 import numpy as np
 from .utilities import draw_from_distrib, drawbinom
-from .ketcham import ketcham99_annealing_model
-from .ketcham import ketcham07_annealing_model
-from .ketcham import sum_population
-from .ketcham import calculate_model_age
 from .viewer import Viewer
+import cython
+import numpy as np
+cimport numpy as np
+
+cdef extern from "include/utilities.h":
+
+    cdef void ketcham_sum_population(
+        int numPDFPts, int numTTNodes, int firstTTNode, int doProject,
+        int usedCf, double *time, double *temperature, double *pdfAxis,
+        double *pdf, double *cdf, double  initLength, double min_length,
+        double  *redLength)
+    cdef void ketcham_calculate_model_age(
+        double *time, double *temperature, double  *redLength,
+        int numTTNodes, int firstNode, double  *oldestModelAge,
+        double *ftModelAge, double stdLengthReduction, double *redDensity)
+
+cdef extern from "include/ketcham1999.h":
+    
+    cdef void ketch99_reduced_lengths(
+        double *time, double *temperature,int numTTNodes, double *redLength,
+        double rmr0, int *firstTTNode)
+
+cdef extern from "include/ketcham2007.h":
+    
+    cdef void ketch07_reduced_lengths(
+        double *time, double *temperature,int numTTNodes, double *redLength,
+        double rmr0, int *firstTTNode)
+
 
 _seconds_in_megayears = 31556925974700
 
@@ -20,7 +44,6 @@ class AnnealingModel():
         self.length_reduction = length_reduction
         self._kinetic_parameter = None
         self._kinetic_parameter_type = None
-        self.annealing_model = None
 
     @property
     def history(self):
@@ -46,47 +69,75 @@ class AnnealingModel():
     def kinetic_parameter_type(self, value):
         self._kinetic_parameter_type = value
 
-    def _get_reduced_length(self, nbins=200):
-        # Convert from megayears to seconds
-        time = self.history.time * _seconds_in_megayears 
-        temperature = self.history.temperature
-
-        self.reduced_lengths, self.first_node = self.annealing_model(
-                time, temperature, self.rmr0, nbins)
-        return self.reduced_lengths, self.first_node
-
     def _get_distribution(self, track_l0, nbins=200):
-        # Convert from megayears to seconds
+    
+        cdef double init_length = track_l0
+        
         time = self.history.time * _seconds_in_megayears 
         temperature = self.history.temperature
+        time = np.ascontiguousarray(time)
+        temperature = np.ascontiguousarray(temperature)
+        reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
+    
+        cdef double[::1] time_memview = time
+        cdef double[::1] temperature_memview = temperature
+        cdef double[::1] reduced_lengths_memview = reduced_lengths
+        cdef double[::1] pdfAxis = np.zeros((nbins))
+        cdef double[::1] cdf = np.zeros((nbins))
+        cdef double[::1] pdf = np.zeros((nbins))
+        cdef int first_node = self.first_node
+        cdef double min_length = self.min_length
+        cdef int project = self.use_projected_track
+        cdef int usedCf = self.use_Cf_irradiation
+    
+        ketcham_sum_population(nbins, time_memview.shape[0], first_node,
+                               <int> project, <int> usedCf, &time_memview[0],
+                               &temperature_memview[0], &pdfAxis[0], &pdf[0],
+                               &cdf[0], init_length, min_length,
+                               &reduced_lengths_memview[0])
         
-        pdf_axis, pdf, cdf = sum_population(
-                time, temperature,
-                self.reduced_lengths, self.first_node,
-                track_l0, self.min_length, nbins,
-                self.use_projected_track, self.use_Cf_irradiation
-                )
-        self.pdf_axis = np.array(pdf_axis)
+        self.pdf_axis = np.array(pdfAxis)
         self.pdf = np.array(pdf) * 0.1
         self.MTL = np.sum(self.pdf_axis * self.pdf) * 200.0 / self.pdf.shape[0] 
-
+    
         return self.pdf_axis, self.pdf, self.MTL
 
     def calculate_age(self, track_l0, nbins=200):
         # Convert from megayears to seconds
         time = self.history.time * _seconds_in_megayears 
         temperature = self.history.temperature
+        time = np.ascontiguousarray(time)
+        temperature = np.ascontiguousarray(temperature)
 
-        self._get_reduced_length(nbins)
+        self.annealing_model(nbins)
         self._get_distribution(track_l0, nbins)
-        oldest_age, ft_model_age, reduced_density = calculate_model_age(
-        time, temperature, self.reduced_lengths, 
-        self.first_node, self.length_reduction
-        )
+        reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
+        
+        cdef double[::1] time_memview = time
+        cdef double[::1] temperature_memview = temperature
+        cdef double[::1] reduced_lengths_memview = reduced_lengths
+        cdef int first_node = self.first_node
+        cdef double std_length_reduction = self.length_reduction
 
-        self.oldest_age = oldest_age
-        self.ft_model_age = ft_model_age
-        self.reduced_density = reduced_density
+        cdef double* oldest_age
+        cdef double* ft_model_age
+        cdef double* reduced_density
+        cdef double val1 = 0.
+        cdef double val2 = 0.
+        cdef double val3 = 0.
+
+        oldest_age = &val1
+        ft_model_age = &val2
+        reduced_density = &val3
+
+        ketcham_calculate_model_age(&time_memview[0], &temperature_memview[0],
+                                    &reduced_lengths_memview[0], time_memview.shape[0],
+                                    first_node, oldest_age, ft_model_age,
+                                    std_length_reduction, reduced_density)
+
+        self.oldest_age = oldest_age[0]
+        self.ft_model_age = ft_model_age[0]
+        self.reduced_density = reduced_density[0]
 
         return self.oldest_age, self.ft_model_age, self.reduced_density
 
@@ -163,7 +214,24 @@ class Ketcham1999(AnnealingModel):
                 length_reduction
                 )
         
-        self.annealing_model = ketcham99_annealing_model
+    def annealing_model(self, nbins=200):
+
+        cdef double[::1] time_memview = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
+        cdef double[::1] temperature_memview = np.ascontiguousarray(self.history.temperature)
+        cdef double[::1] reduced_lengths = np.zeros((nbins))
+        cdef double crmr0 = self.rmr0 
+        cdef int a = 0
+        cdef int* first_node
+
+        first_node = &a
+
+        ketch99_reduced_lengths(&time_memview[0], &temperature_memview[0],
+                                time_memview.shape[0], &reduced_lengths[0],
+                                crmr0, first_node)
+
+        self.reduced_lengths = np.array(reduced_lengths)
+        self.first_node = first_node[0]
+        return self.reduced_lengths, self.first_node
 
     @property
     def rmr0(self):
@@ -226,7 +294,25 @@ class Ketcham2007(AnnealingModel):
                 use_Cf_irradiation, min_length,
                 length_reduction
                 )
-        self.annealing_model = ketcham07_annealing_model
+
+    def annealing_model(self, nbins=200):
+
+        cdef double[::1] time_memview = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
+        cdef double[::1] temperature_memview = np.ascontiguousarray(self.history.temperature)
+        cdef double[::1] reduced_lengths = np.zeros((nbins))
+        cdef double crmr0 = self.rmr0 
+        cdef int a = 0
+        cdef int* first_node
+
+        first_node = &a
+
+        ketch07_reduced_lengths(&time_memview[0], &temperature_memview[0],
+                                time_memview.shape[0], &reduced_lengths[0],
+                                crmr0, first_node)
+
+        self.reduced_lengths = np.array(reduced_lengths)
+        self.first_node = first_node[0]
+        return self.reduced_lengths, self.first_node
 
     @property
     def rmr0(self):
