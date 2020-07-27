@@ -2,7 +2,7 @@
 #include "utilities.h"
 #include <stdio.h>
 
-#define MIN_OBS_RCMOD  0.55
+#define MIN_OBS_RCMOD  0.13
 
 #define	SECS_PER_MA		3.1556736e13
 #define U238SEC 4.91575e-18
@@ -207,6 +207,9 @@ void ketcham_sum_population(int num_points_pdf, int numTTNodes, int firstTTNode,
     wt2 = exp(U238SEC * time[j+1]) / U238SEC;
     weight = wt1 - wt2;
     wt1 = wt2;
+    // 253Cf irradiation of Apatite can be used to increase the number of confined fission tracks available for
+    // length measurement. It can also change the biasing of track detection. 
+    // We use the empirical functions provided by Ketcham et al, 1999 for experiments with and without Cf.
     rmLen = usedCf ? 1.396 * redLength[j] - 0.4017 : -1.499 * redLength[j] * redLength[j] + 4.150 * redLength[j] - 1.656;
     rLen = doProject ? redLength[j] : rmLen;
     rStDev = calculate_reduced_stddev(rLen, doProject);
