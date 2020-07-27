@@ -6,24 +6,20 @@ from .ketcham import sum_population
 from .ketcham import calculate_model_age
 from .viewer import Viewer
 
-kinpar = {"ETCH_PIT_LENGTH": 0, "CL_PFU": 1,
-          "OH_PFU": 2, "CL_WT_PCT": 3}
-
-etchants = {"5.5": 0, "5.0": 1}
-
 _seconds_in_megayears = 31556925974700
 
-class ForwardModel():
+class AnnealingModel():
 
-    def __init__(self, history, use_projected_track=False,
-                 use_confined_track=False, min_length=2.15,
+    def __init__(self, use_projected_track=False,
+                 use_Cf_irradiation=False, min_length=2.15,
                  length_reduction=0.893):
 
-        self.history = history
         self.use_projected_track = use_projected_track
-        self.use_confined_track = use_confined_track
+        self.use_Cf_irradiation = use_Cf_irradiation
         self.min_length = min_length
         self.length_reduction = length_reduction
+        self._kinetic_parameter = None
+        self._kinetic_parameter_type = None
         self.annealing_model = None
 
     @property
@@ -33,37 +29,31 @@ class ForwardModel():
     @history.setter
     def history(self, value):
         self._history = value
-        self.cache_reduced_length = {}
 
-    def _get_reduced_length(self, kinetic_parameter_type,
-                            kinetic_parameter_value, nbins=200):
+    @property
+    def kinetic_parameter(self):
+        return self._kinetic_parameter
+
+    @kinetic_parameter.setter
+    def kinetic_parameter(self, value):
+        self._kinetic_parameter = value
+    
+    @property
+    def kinetic_parameter_type(self):
+        return self._kinetic_parameter_type
+
+    @kinetic_parameter_type.setter
+    def kinetic_parameter_type(self, value):
+        self._kinetic_parameter_type = value
+
+    def _get_reduced_length(self, nbins=200):
         # Convert from megayears to seconds
         time = self.history.time * _seconds_in_megayears 
         temperature = self.history.temperature
-        kinetic_parameter_type = kinpar[kinetic_parameter_type]
 
-        try:
-            data = self.cache_reduced_length[kinetic_parameter_value]
-        except:
-            data = None
-
-        data = None
-        if data:
-            print("Use cached results")
-            reduced_lengths = data["reduced_lengths"]
-            first_node = data["first_node"]
-        else:
-            reduced_lengths, first_node = self.annealing_model(
-                    time, temperature, kinetic_parameter_type,
-                    kinetic_parameter_value, nbins, self.etchant
-                    )
-            data = {"reduced_lengths": reduced_lengths,
-                    "first_node": first_node}
-            self.cache_reduced_length[kinetic_parameter_value] = data
-
-        self.reduced_lengths = reduced_lengths
-        self.first_node = first_node
-        return reduced_lengths, first_node
+        self.reduced_lengths, self.first_node = self.annealing_model(
+                time, temperature, self.rmr0, nbins)
+        return self.reduced_lengths, self.first_node
 
     def _get_distribution(self, track_l0, nbins=200):
         # Convert from megayears to seconds
@@ -74,7 +64,7 @@ class ForwardModel():
                 time, temperature,
                 self.reduced_lengths, self.first_node,
                 track_l0, self.min_length, nbins,
-                self.use_projected_track, self.use_confined_track
+                self.use_projected_track, self.use_Cf_irradiation
                 )
         self.pdf_axis = np.array(pdf_axis)
         self.pdf = np.array(pdf) * 0.1
@@ -82,13 +72,12 @@ class ForwardModel():
 
         return self.pdf_axis, self.pdf, self.MTL
 
-    def calculate_age(self, track_l0, kinetic_parameter_type,
-                      kinetic_parameter_value, nbins=200):
+    def calculate_age(self, track_l0, nbins=200):
         # Convert from megayears to seconds
         time = self.history.time * _seconds_in_megayears 
         temperature = self.history.temperature
 
-        self._get_reduced_length(kinetic_parameter_type, kinetic_parameter_value, nbins)
+        self._get_reduced_length(nbins)
         self._get_distribution(track_l0, nbins)
         oldest_age, ft_model_age, reduced_density = calculate_model_age(
         time, temperature, self.reduced_lengths, 
@@ -130,31 +119,115 @@ class ForwardModel():
         return tls
 
 
-class Ketcham1999(ForwardModel):
+class Ketcham1999(AnnealingModel):
+    
+    @staticmethod
+    def convert_Dpar_to_rmr0(dpar):
+        if dpar <= 1.75: 
+            return 0.84
+        elif dpar >= 4.58: 
+            return 0.
+        else: 
+            return 1.0 - np.exp(0.647 * (dpar - 1.75) - 1.834)
 
-    def __init__(self, history, use_projected_track=False,
-                 use_confined_track=False, min_length=2.15,
-                 length_reduction=0.893, etchant="5.5"):
+    @staticmethod
+    def convert_Cl_pfu_to_rmr0(clpfu):
+        value = np.abs(clpfu - 1.0)
+        if value <= 0.130:
+            return 0.0
+        else:
+            return 1.0 - np.exp(2.107 * (1.0 - value) - 1.834)
+
+    @staticmethod
+    def convert_Cl_weight_pct(clwpct):
+        clwpct *= 0.2978
+        return Ketcham1999.convert_Cl_pfu_to_rmr0(clwpct)
+
+    @staticmethod
+    def convert_OH_pfu_to_rmr0(ohpfu):
+        value = np.abs(ohpfu - 1.0)
+        return 0.84 * (1.0 - (1.0 - value)**4.5)
+
+    _kinetic_conversion = {"ETCH_PIT_LENGTH": convert_Dpar_to_rmr0,
+                          "CL_PFU": convert_Cl_pfu_to_rmr0,
+                          "OH_PFU": convert_OH_pfu_to_rmr0,
+                          "RMR0": lambda x: x}
+
+    def __init__(self, use_projected_track=False,
+                 use_Cf_irradiation=False, min_length=2.15,
+                 length_reduction=0.893):
 
         super(Ketcham1999, self).__init__(
-                history, use_projected_track,
-                use_confined_track, min_length,
+                use_projected_track,
+                use_Cf_irradiation, min_length,
                 length_reduction
                 )
-        self.etchant = etchants[etchant]
+        
         self.annealing_model = ketcham99_annealing_model
 
+    @property
+    def rmr0(self):
+        return Ketcham1999._kinetic_conversion[self.kinetic_parameter_type].__func__(self.kinetic_parameter)
 
-class Ketcham2007(ForwardModel):
 
-    def __init__(self, history, use_projected_track=False,
-                 use_confined_track=False, min_length=2.15,
-                 length_reduction=0.893, etchant="5.5"):
+
+class Ketcham2007(AnnealingModel):
+    
+    @staticmethod
+    def convert_Dpar_to_rmr0(dpar, etchant="5.5HNO3"):
+        """ Here depends on the etchant (5.5 or 5.0 HNO3)
+            This is based on the relation between the fitted rmr0 values and
+            the Dpar etched using a 5.5M etchant as published in
+            Ketcham et al, 2007,Figure 6b
+            We use the linear conversion defined in Ketcham et al 2007 to
+            make sure that we are using 5.5M DPar"""
+        if etchant == "5.0HNO3": 
+             dpar = 0.9231 * dpar + 0.2515
+        if dpar <= 1.75:
+            return 0.84
+        elif dpar >= 4.58:
+            return 0
+        else:
+            return 0.84 * ((4.58 - dpar) / 2.98)**0.21
+        
+    @staticmethod
+    def convert_Cl_pfu_to_rmr0(clpfu):
+        """ Relation between fitted rmr0 value from the fanning curvilinear model and
+            Cl content is taken from Ketcham et al 2007 Figure 6a """
+        value = np.abs(clpfu - 1.0)
+        if value <= 0.130:
+            return 0.0
+        else:
+            return 0.83 * ((value - 0.13) / 0.87)**0.23
+
+    @staticmethod
+    def convert_Cl_weight_pct(clwpct):
+        # Convert %wt to APFU
+        return Ketcham2007.convert_Cl_pfu_to_rmr0(clwpct * 0.2978)
+
+
+    @staticmethod
+    def convert_unit_paramA_to_rmr0(paramA):
+        if paramA >= 9.51:
+            return 0.0
+        else:
+            return 0.84 * ((9.509 - paramA) / 0.162)**0.175
+    
+    _kinetic_conversion = {"ETCH_PIT_LENGTH": convert_Dpar_to_rmr0,
+                          "CL_PFU": convert_Cl_pfu_to_rmr0,
+                          "RMR0": lambda x: x}
+
+    def __init__(self, use_projected_track=False,
+                 use_Cf_irradiation=False, min_length=2.15,
+                 length_reduction=0.893):
 
         super(Ketcham2007, self).__init__(
-                history, use_projected_track,
-                use_confined_track, min_length,
+                use_projected_track,
+                use_Cf_irradiation, min_length,
                 length_reduction
                 )
-        self.etchant = etchants[etchant]
         self.annealing_model = ketcham07_annealing_model
+
+    @property
+    def rmr0(self):
+        return Ketcham2007._kinetic_conversion[self.kinetic_parameter_type].__func__(self.kinetic_parameter)

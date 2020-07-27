@@ -22,13 +22,13 @@ cdef extern from "include/ketcham1999.h":
     
     cdef void ketch99_reduced_lengths(
         double *time, double *temperature,int numTTNodes, double *redLength,
-        double kinPar, int kinParType, int *firstTTNode, int etchant)
+        double rmr0, int *firstTTNode)
 
 cdef extern from "include/ketcham2007.h":
     
     cdef void ketch07_reduced_lengths(
         double *time, double *temperature,int numTTNodes, double *redLength,
-        double kinPar, int kinParType, int *firstTTNode, int etchant)
+        double rmr0, int *firstTTNode)
 
 def isothermal_intervals(time, temperature, max_temp_per_step, max_temp_step_near_ta):
 
@@ -50,10 +50,7 @@ def isothermal_intervals(time, temperature, max_temp_per_step, max_temp_step_nea
     return np.array(new_time)[:new_npoints[0]], np.array(new_temperature)[:new_npoints[0]]
 
 
-def ketcham99_annealing_model(time, temperature,
-                              int kinetic_parameter_type,
-                              double kinetic_parameter_value,
-                              int nbins, int etchant):
+def ketcham99_annealing_model(time, temperature, double rmr0, int nbins):
 
     time = np.ascontiguousarray(time)
     temperature = np.ascontiguousarray(temperature)
@@ -68,17 +65,12 @@ def ketcham99_annealing_model(time, temperature,
 
     ketch99_reduced_lengths(&time_memview[0], &temperature_memview[0],
                             time_memview.shape[0], &reduced_lengths[0],
-                            kinetic_parameter_value,
-                            kinetic_parameter_type,
-                            first_node, etchant)
+                            rmr0, first_node)
 
     return np.array(reduced_lengths), first_node[0]
 
 
-def ketcham07_annealing_model(time, temperature,
-                              int kinetic_parameter_type,
-                              double kinetic_parameter_value,
-                              int nbins, int etchant):
+def ketcham07_annealing_model(time, temperature, double rmr0, int nbins):
 
     time = np.ascontiguousarray(time)
     temperature = np.ascontiguousarray(temperature)
@@ -93,9 +85,7 @@ def ketcham07_annealing_model(time, temperature,
 
     ketch07_reduced_lengths(&time_memview[0], &temperature_memview[0],
                             time_memview.shape[0], &reduced_lengths[0],
-                            kinetic_parameter_value,
-                            kinetic_parameter_type,
-                            first_node, etchant)
+                            rmr0, first_node)
 
     return np.array(reduced_lengths), first_node[0]
 

@@ -2,25 +2,18 @@
 #include "ketcham2007.h"
 #include <stdio.h>
 
-#define	ETCH_PIT_LENGTH	0
-#define CL_PFU 1
-#define OH_PFU 2
-#define	CL_WT_PCT 3
-#define UNIT_PARAM_A 4
-#define WEAK_ETCHANT 0
-
 #define MIN_OBS_RCMOD  0.55
 
 void ketch07_reduced_lengths(double *time, double *temperature, int numTTNodes,
-                             double *redLength, double kinPar, int kinParType,
-                             int *firstTTNode, int etchant)
+                             double *redLength, double rmr0,
+                             int *firstTTNode)
 {
     int     node, nodeB;
     double  equivTime;
     double  timeInt, x1, x2;
     double  totAnnealLen;
     double  equivTotAnnLen;
-    double  rmr0, k;
+    double  k;
     double  calc;
     double  tempCalc;
   
@@ -30,56 +23,6 @@ void ketch07_reduced_lengths(double *time, double *temperature, int numTTNodes,
 
     /* Fanning Curvilinear Model lcMod FC, See Ketcham 2007, Table 5c */
     annealModel modKetch07 = {0.39528, 0.01073, -65.12969, -7.91715, 0.04672};
-
-    rmr0 = 0;
-
-    switch (kinParType) {
-
-        case ETCH_PIT_LENGTH:
-            /* Here depends on the etchant (5.5 or 5.0 HNO3) */
-            /* This is based on the relation between the fitted rmr0 values and
-             * the Dpar etched using a 5.5M etchant as published in Ketcham et al, 2007,
-             * Figure 6b */
-            /* We use the linear conversion defined in Ketcham et al 2007 to
-             * make sure that we are using 5.5M DPar */
-            if (etchant == WEAK_ETCHANT) kinPar = 0.9231 * kinPar + 0.2515;
-            // The following is for Durango like apatites
-            if (kinPar <= 1.75) rmr0 = 0.84; //
-            // for apatites with DPars larger than the ones measured for the B2 apatite.
-            else if (kinPar >= 4.58) rmr0 = 0.0;
-            // Fit from Ketcham et al, 2007
-            else rmr0 = 0.84 * pow((4.58 - kinPar) / 2.98, 0.21);
-            break;
-
-        case CL_WT_PCT:
-            /* Convert %wt to APFU */
-            kinPar = kinPar * 0.2978;
-            /* Relation between fitted rmr0 value from the fanning curvilinear model and
-             * Cl content is taken from Ketcham et al 2007 Figure 6a*/
-            calc = fabs(kinPar - 1.0);
-            if (calc <= 0.130) rmr0 = 0.0;
-            else rmr0 = 0.83 * pow((calc - 0.13) / 0.87, 0.23);
-            break;
-        
-        case CL_PFU:
-            /* Relation between fitted rmr0 value from the fanning curvilinear model and
-             * Cl content is taken from Ketcham et al 2007 Figure 6a*/
-            calc = fabs(kinPar - 1.0);
-            if (calc <= 0.130) rmr0 = 0.0;
-            else rmr0 = 0.83 * pow((calc - 0.13) / 0.87, 0.23);
-            break;
-
-        case UNIT_PARAM_A:
-            /* This is based on the relation between the fitted rmr0 values and
-             * the cell parameter A as published in Ketcham et al, 2007,
-             * Figure 6c */
-            // For apatites with A > A(B2 apatite)
-            if (kinPar >= 9.51) rmr0 = 0.0;
-            // Fit from Ketcham et al, 2007
-            else rmr0 = 0.84 * pow((9.509 - kinPar) / 0.162, 0.175);
-            break;
-
-    }
 
     k = 1.04 - rmr0;
   

@@ -2,23 +2,17 @@
 #include "ketcham1999.h"
 #include <stdio.h>
 
-#define	ETCH_PIT_LENGTH	0
-#define CL_PFU 1
-#define OH_PFU 2
-#define	CL_WT_PCT 3
-
 #define MIN_OBS_RCMOD  0.55
 
 void ketch99_reduced_lengths(double *time, double *temperature, int numTTNodes,
-                             double *redLength,  double kinPar, int kinParType,
-                             int *firstTTNode, int etchant)
+                             double *redLength,  double rmr0, int *firstTTNode)
 {
   int     node, nodeB;
   double  equivTime;
   double  timeInt,x1,x2,x3;
   double  totAnnealLen;
   double  equivTotAnnLen;
-  double  rmr0,k;
+  double  k;
   double  calc;
   double  tempCalc;
 
@@ -28,42 +22,6 @@ void ketch99_reduced_lengths(double *time, double *temperature, int numTTNodes,
 
   /* Fanning Curvilinear Model lcMod FC, See Ketcham 1999, Table 5e */
   annealModel modKetch99 = {-19.844, 0.38951, -51.253, -7.6423, -0.12327, -11.988};
-
-  rmr0 = 0;
-
-  /* Calculate the rmr0-k values for the kinetic parameter given */
-  switch (kinParType) {
-
-    /* See Ketcham et al 1999, Figure 7b */
-    case ETCH_PIT_LENGTH:
-      if (kinPar <= 1.75) rmr0 = 0.84;
-      else if (kinPar >= 4.58) rmr0 = 0.0;
-      else rmr0 = 1.0 - exp(0.647 * (kinPar - 1.75) - 1.834);
-      break;
-
-    case CL_WT_PCT:
-      /* Just convert the kinetic parameter to Cl apfu
-         Note that this invalidates kinPar for the rest of the routine */
-      kinPar = kinPar * 0.2978;
-      /* See Ketcham, et al, 1999, Figure 7a */
-      calc = fabs(kinPar - 1.0);
-      if (calc <= 0.130) rmr0 = 0.0;
-      else rmr0 = 1.0 - exp(2.107 * (1.0 - calc) - 1.834);
-      break;
-    
-    case CL_PFU:
-      /* See Ketcham, et al, 1999, Figure 7a */
-      calc = fabs(kinPar - 1.0);
-      if (calc <= 0.130) rmr0 = 0.0;
-      else rmr0 = 1.0 - exp(2.107 * (1.0 - calc) - 1.834);
-      break;
-
-    /* See Ketcham, et al, 1999, Figure 7c */
-    case OH_PFU:
-      calc = fabs(kinPar - 1.0);
-      rmr0 = 0.84 * (1.0 - pow(1.0 - calc, 4.5));
-      break;
-  }
 
   k = 1.0 - rmr0;
   
