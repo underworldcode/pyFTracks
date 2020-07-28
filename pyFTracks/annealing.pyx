@@ -6,6 +6,8 @@ import numpy as np
 cimport numpy as np
 from libc.math cimport exp, pow, log
 
+
+
 cdef struct annealModel:
     double c0, c1, c2, c3, a, b
 
@@ -92,10 +94,10 @@ class AnnealingModel():
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
+        cdef int first_node = self.first_node
         cdef double[::1] pdfAxis = np.zeros((nbins))
         cdef double[::1] cdf = np.zeros((nbins))
         cdef double[::1] pdf = np.zeros((nbins))
-        cdef int first_node = self.first_node
         cdef double min_length = self.min_length
         cdef int project = self.use_projected_track
         cdef int usedCf = self.use_Cf_irradiation
@@ -156,10 +158,10 @@ class AnnealingModel():
     
         return self.pdf_axis, self.pdf, self.MTL
 
-    def calculate_age(self, track_l0, nbins=200):
+    def calculate_age(self, track_l0):
 
-        self.annealing_model(nbins)
-        self._get_distribution(track_l0, nbins)
+        self.annealing_model()
+        self._get_distribution(track_l0)
 
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears )
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
@@ -271,12 +273,12 @@ class Ketcham1999(AnnealingModel):
                 length_reduction
                 )
         
-    def annealing_model(self, nbins=200):
+    def annealing_model(self):
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
-        cdef double[::1] reduced_lengths = np.zeros((nbins))
-        cdef double crmr0 = self.rmr0
         cdef int numTTnodes = time.shape[0]
+        cdef double[::1] reduced_lengths = np.zeros(time.shape[0] - 1)
+        cdef double crmr0 = self.rmr0
         cdef int first_node = 0
 
         cdef int node, nodeB
@@ -323,7 +325,6 @@ class Ketcham1999(AnnealingModel):
 
             # Check to see if we've reached the end of the length distribution
             # If so, we then do the kinetic conversion.
-
             if reduced_lengths[node] == 0.0 or node == 0:
                 if node > 0:
                     node += 1
@@ -414,12 +415,12 @@ class Ketcham2007(AnnealingModel):
                 length_reduction
                 )
 
-    def annealing_model(self, nbins=200):
+    def annealing_model(self):
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
-        cdef double[::1] reduced_lengths = np.zeros((nbins))
-        cdef double crmr0 = self.rmr0
         cdef int numTTnodes = time.shape[0]
+        cdef double[::1] reduced_lengths = np.zeros(time.shape[0] - 1)
+        cdef double crmr0 = self.rmr0
         cdef int first_node = 0
 
         cdef int node, nodeB
