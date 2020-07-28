@@ -2,6 +2,7 @@ import numpy as np
 import cython
 import numpy as np
 cimport numpy as np
+from libc.math cimport fabs
 
 cdef extern from "include/utilities.h":
 
@@ -9,6 +10,16 @@ cdef extern from "include/utilities.h":
         double *time, double *temperature, int npoints,
         double max_temp_per_step, double max_temp_step_near_ta,
         double *new_time, double *new_temperature, int *new_npoints)
+
+
+cdef calculate_annealing_temperature(double abs_gradient):
+    """ Calculate the annealing temperature based on absolute temperature gradient
+        The total annealing temperature (TA) for F-apatite
+        for a given heating or cooling rate (R) is given by the equation:
+      
+                          Ta = 377.67 * R**0.019837
+    """ 
+    return 377.67 * abs_gradient**0.019837
 
 
 class ThermalHistory(object):
@@ -36,41 +47,112 @@ class ThermalHistory(object):
 
     def get_isothermal_intervals(self, max_temperature_per_step=8.0,
                                  max_temperature_step_near_ta=3.5):
+
         """
-        The more segments a time-temperature path is subdivided into
-        the more accurate the numerical solution.
-        Issler (1996) demonstrated that time steps should be smaller
-        as we approach total annealing temperature.
-        For the Ketcham et 1999 model for F-apatite, Ketcham 2000
-        found that 0.5 precision is assured if the there is no step
-        greater than a 3.5 degrees change within 10 degrees
-        of the F-apatite total annealing temperature.
+        Interpolate Time Temperature path
+        Takes the time-temperature path specification and subdivides it for
+        calculation in isothermal intervals. 
+        
+        Reference:
+        
+        Ketcham, R. A. (2005). Forward and Inverse Modeling of Low-Temperature
+        Thermochronometry Data. Reviews in Mineralogy and Geochemistry, 58(1),
+        275–314. doi:10.2138/rmg.2005.58.11
+        
+        It is calibrated to facilitate 0.5% accuracy for end-member F-apatite by
+        having a maximum temperature step of 3.5 degrees C when the model temperature
+        is within 10C of the total annealing temperature. Before this cutoff the
+        maximum temperature step required is 8 C. If the overall model tine steps are
+        too large, these more distant requirement may not be meet.
+        
+        Quoted text:
+        
+        "The more segments a time-temperature path is subdivided into, the more accurate
+        the numerical solution will be. Conversely, an excessive number of time steps
+        will slow computation down unnecessarily. The optimal time step size to achieve a desired
+        solution accuracy was examined in detail by Issler (1996b), who demonstrated that time
+        steps should be smaller as the total annealing temperature of apatite is approached.
+        For the Ketcham et al. (1999) annealing model for F-apatite, Ketcham et al. (2000) found that 0.5%
+        precision is assured if there is no step with greater than a 3.5 ºC change within 10 ºC of
+        the F-apatite total annealing temperature."""
 
-        We set a maximum temperature step of 3.5 degrees C when the model
-        temperature is within 10 degrees of the total annealing temperature.
-        Before this cutoff the maximum temperature step required is 8C
-        """
-
-        time = np.ascontiguousarray(self.input_time)
-        temperature = np.ascontiguousarray(self.input_temperature)
-
-        cdef double[::1] time_memview = time
-        cdef double[::1] temperature_memview = temperature
+        cdef double[::1] time = np.ascontiguousarray(self.input_time)
+        cdef double[::1] temperature = np.ascontiguousarray(self.input_temperature)
         cdef double[::1] new_time = np.ndarray((200))
         cdef double[::1] new_temperature = np.ndarray((200))
         cdef double cmax_temp_per_step = max_temperature_per_step
         cdef double cmax_temp_step_near_ta = max_temperature_step_near_ta
-        cdef int* new_npoints
-        cdef int a=0
+        cdef int npoints = time.shape[0]
 
-        new_npoints = &a
+        cdef double default_timestep
+        cdef double alternative_timestep = 0.0
+        cdef double gradient, abs_gradient
+        cdef double temperature_interval
+        cdef double end_temperature
+        cdef double fact
+        cdef double temp_per_step
+        cdef double current_default_timestep
+        cdef double Ta_near
+        cdef double max_temperature
+        cdef double timestep
+        cdef double time_interval
 
-        refine_history(&time_memview[0], &temperature_memview[0], time_memview.shape[0],
-                       cmax_temp_per_step, cmax_temp_step_near_ta,
-                       &new_time[0], &new_temperature[0], new_npoints)
-        self.time = np.array(new_time)[:new_npoints[0]]
-        self.temperature = np.array(new_temperature)[:new_npoints[0]]
+        cdef int segments
+        cdef int new_npoints = 1
+
+        new_temperature[0] = temperature[npoints - 1]
+        new_time[0] = time[npoints - 1]
+
+        default_timestep = time[npoints - 1] * 1.0 / 100
+
+        for seg in range(npoints - 1, 0, -1):
+            temperature_interval = temperature[seg] - temperature[seg - 1]
+            time_interval = time[seg] - time[seg - 1]
+            gradient = temperature_interval / time_interval
+            abs_gradient = fabs(gradient)
+            end_temperature = temperature[seg-1]
+            fact = 0
+            if gradient < 0:
+                fact = -1
+
+            temp_per_step = abs_gradient * default_timestep
+
+            if temp_per_step <= cmax_temp_per_step:
+                current_default_timestep = default_timestep
+            else:
+                current_default_timestep = cmax_temp_per_step / abs_gradient
+
+            if abs_gradient < 0.1:
+                Ta_near = 1000.
+            else:
+                Ta_near = calculate_annealing_temperature(abs_gradient) + 10.
+                alternative_timestep = cmax_temp_step_near_ta / abs_gradient
+
+            while new_time[new_npoints - 1] > time[seg-1]:
+
+                max_temperature = new_temperature[new_npoints - 1] + default_timestep * gradient * fact
+                if gradient < 0. and max_temperature > end_temperature:
+                    max_temperature = end_temperature
+               
+                timestep = current_default_timestep
+
+                if max_temperature > Ta_near:
+                    if alternative_timestep < default_timestep:
+                        timestep = alternative_timestep
+
+                if (timestep + 0.001) > (new_time[new_npoints - 1] - time[seg - 1]):
+                    new_time[new_npoints] = time[seg - 1]
+                    new_temperature[new_npoints] = end_temperature
+                else:
+                    new_time[new_npoints] = new_time[new_npoints - 1] - timestep
+                    new_temperature[new_npoints] = new_temperature[new_npoints - 1] - gradient * timestep
+            
+                new_npoints += 1
+
+        self.time = np.array(new_time)[:new_npoints]
+        self.temperature = np.array(new_temperature)[:new_npoints]
         return self.time, self.temperature
+
 
 # Some useful thermal histories
 WOLF1 = ThermalHistory(

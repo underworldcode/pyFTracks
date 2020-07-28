@@ -4,18 +4,19 @@ from .viewer import Viewer
 import cython
 import numpy as np
 cimport numpy as np
+from libc.math cimport exp
 
-cdef extern from "include/utilities.h":
+# cdef extern from "include/utilities.h":
 
-    cdef void ketcham_sum_population(
-        int numPDFPts, int numTTNodes, int firstTTNode, int doProject,
-        int usedCf, double *time, double *temperature, double *pdfAxis,
-        double *pdf, double *cdf, double  initLength, double min_length,
-        double  *redLength)
-    cdef void ketcham_calculate_model_age(
-        double *time, double *temperature, double  *redLength,
-        int numTTNodes, int firstNode, double  *oldestModelAge,
-        double *ftModelAge, double stdLengthReduction, double *redDensity)
+#     cdef void ketcham_sum_population(
+#         int numPDFPts, int numTTNodes, int firstTTNode, int doProject,
+#         int usedCf, double *time, double *temperature, double *pdfAxis,
+#         double *pdf, double *cdf, double  initLength, double min_length,
+#         double  *redLength)
+#     cdef void ketcham_calculate_model_age(
+#         double *time, double *temperature, double  *redLength,
+#         int numTTNodes, int firstNode, double  *oldestModelAge,
+#         double *ftModelAge, double stdLengthReduction, double *redDensity)
 
 cdef extern from "include/ketcham1999.h":
     
@@ -29,6 +30,42 @@ cdef extern from "include/ketcham2007.h":
         double *time, double *temperature,int numTTNodes, double *redLength,
         double rmr0, int *firstTTNode)
 
+cdef correct_observational_bias(double cparlen):
+    """
+    Does the conversion from length to density for the Ketcham et al., 1999 model.
+    
+    The routine is also used to estimate bias for population summing.
+    
+    Assumes we're passing in a c-axis-projected length
+    
+    The following text is taken from Forward Inverse and Modeling of LT Thermoch Data
+    Low-T Thermochronology: Techniques, Interpretations and Applications (ed. Reiners an Ehlers)
+    
+    The observational bias quantifies the relative probability of observation among different
+    fission-track populations calculated by the model. Highly annealed populations are less
+    likely to be detected and measured than less-annealed populations for 2 primary reasons.
+      - Shorter track are less frequently impinged and thus etched
+      - At advanced stage of annealing some proportion of tracks at high angles to the c-axis
+        may be lost altogether, even though lower-angle tracks remain long
+    Thus the number of detectable tracks in the more annealed population diminishes, at a rate
+    dispropportionate to measured mean length (Ketcham 2003b). These 2 factors can be approximated
+    in a general way by using an empirical function that relates measured fission-track length to
+    fission-track density (e,g. Green 1998). The following is taken from Ketcham et al 2000 
+    """
+    if (cparlen > 0.765):
+        return 1.600 * cparlen - 0.599
+    if (cparlen >= 0.13):
+        return 9.205 * cparlen * cparlen - 9.157 * cparlen + 2.269
+    return 0.0
+
+
+cdef calculate_reduced_stddev(double redLength, int doProject):
+    """Calculates the reduced standard deviation of a track population length
+       from the reduced mean length.  Based on Carlson and Donelick"""
+    if doProject:
+        return(0.1081 - 0.1642 * redLength + 0.1052 * redLength * redLength)
+    else:
+        return(0.4572 - 0.8815 * redLength + 0.4947 * redLength * redLength)
 
 _seconds_in_megayears = 31556925974700
 
@@ -69,19 +106,47 @@ class AnnealingModel():
     def kinetic_parameter_type(self, value):
         self._kinetic_parameter_type = value
 
+    # def _get_distribution(self, track_l0, nbins=200):
+    
+    #     cdef double init_length = track_l0
+        
+    #     time = self.history.time * _seconds_in_megayears 
+    #     temperature = self.history.temperature
+    #     time = np.ascontiguousarray(time)
+    #     temperature = np.ascontiguousarray(temperature)
+    #     reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
+    
+    #     cdef double[::1] time_memview = time
+    #     cdef double[::1] temperature_memview = temperature
+    #     cdef double[::1] reduced_lengths_memview = reduced_lengths
+    #     cdef double[::1] pdfAxis = np.zeros((nbins))
+    #     cdef double[::1] cdf = np.zeros((nbins))
+    #     cdef double[::1] pdf = np.zeros((nbins))
+    #     cdef int first_node = self.first_node
+    #     cdef double min_length = self.min_length
+    #     cdef int project = self.use_projected_track
+    #     cdef int usedCf = self.use_Cf_irradiation
+    
+    #     ketcham_sum_population(nbins, time_memview.shape[0], first_node,
+    #                            <int> project, <int> usedCf, &time_memview[0],
+    #                            &temperature_memview[0], &pdfAxis[0], &pdf[0],
+    #                            &cdf[0], init_length, min_length,
+    #                            &reduced_lengths_memview[0])
+        
+    #     self.pdf_axis = np.array(pdfAxis)
+    #     self.pdf = np.array(pdf) * 0.1
+    #     self.MTL = np.sum(self.pdf_axis * self.pdf) * 200.0 / self.pdf.shape[0] 
+    
+    #     return self.pdf_axis, self.pdf, self.MTL
+
+
     def _get_distribution(self, track_l0, nbins=200):
     
         cdef double init_length = track_l0
-        
-        time = self.history.time * _seconds_in_megayears 
-        temperature = self.history.temperature
-        time = np.ascontiguousarray(time)
-        temperature = np.ascontiguousarray(temperature)
-        reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
-    
-        cdef double[::1] time_memview = time
-        cdef double[::1] temperature_memview = temperature
-        cdef double[::1] reduced_lengths_memview = reduced_lengths
+         
+        cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
+        cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
+        cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
         cdef double[::1] pdfAxis = np.zeros((nbins))
         cdef double[::1] cdf = np.zeros((nbins))
         cdef double[::1] pdf = np.zeros((nbins))
@@ -89,13 +154,57 @@ class AnnealingModel():
         cdef double min_length = self.min_length
         cdef int project = self.use_projected_track
         cdef int usedCf = self.use_Cf_irradiation
-    
-        ketcham_sum_population(nbins, time_memview.shape[0], first_node,
-                               <int> project, <int> usedCf, &time_memview[0],
-                               &temperature_memview[0], &pdfAxis[0], &pdf[0],
-                               &cdf[0], init_length, min_length,
-                               &reduced_lengths_memview[0])
-        
+        cdef int num_points_pdf = nbins
+        cdef int numTTNodes = time.shape[0]
+
+        cdef int i, j
+        cdef double weight, rLen, rStDev, obsBias, rmLen, calc, z
+        cdef double wt1, wt2
+
+        cdef double U238SEC = 4.91575e-18
+        cdef double SQRT2PI = 2.50662827463
+
+        for i in range(num_points_pdf):
+            pdf[i] = 0.
+
+        for i in range(num_points_pdf):
+            pdfAxis[i] = <double>(i * 1.0 + 0.5) * 20.0 / num_points_pdf
+
+        wt1 = exp(U238SEC * time[first_node]) / U238SEC
+
+        for j in range(numTTNodes - 1):
+
+            wt2 = exp(U238SEC * time[j+1]) / U238SEC
+            weight = wt1 - wt2
+            wt1 = wt2
+            if usedCf:
+                rmLen = 1.396 * reduced_lengths[j] - 0.4017
+            else:
+                rmLen = -1.499 * reduced_lengths[j] * reduced_lengths[j] + 4.150 * reduced_lengths[j] - 1.656
+            if project:
+                rLen = reduced_lengths[j]
+            else:
+                rLen = rmLen
+            rStDev = calculate_reduced_stddev(rLen, project)
+            obsBias = correct_observational_bias(reduced_lengths[j])
+            calc = weight * obsBias / (rStDev * SQRT2PI)
+
+            if rLen > 0:
+                for i in range(num_points_pdf):
+                    if pdfAxis[i] >= min_length:
+                        z = (rLen - pdfAxis[i] / init_length) / rStDev
+                        if z <= 4:
+                            pdf[i] += calc * exp(-(z*z) / 2.0)
+
+        cdf[0] = pdf[0]
+        for i in range(num_points_pdf):
+            cdf[i] = cdf[i-1] = ((pdf[i] + pdf[i-1]) / 2.0) * (pdfAxis[i] - pdfAxis[i-1])
+       
+        if cdf[num_points_pdf - 1] > 0.:
+            for i in range(num_points_pdf):
+                pdf[i] = pdf[i] / cdf[num_points_pdf - 1]
+                cdf[i] = cdf[i] / cdf[num_points_pdf - 1]
+
         self.pdf_axis = np.array(pdfAxis)
         self.pdf = np.array(pdf) * 0.1
         self.MTL = np.sum(self.pdf_axis * self.pdf) * 200.0 / self.pdf.shape[0] 
@@ -103,41 +212,44 @@ class AnnealingModel():
         return self.pdf_axis, self.pdf, self.MTL
 
     def calculate_age(self, track_l0, nbins=200):
-        # Convert from megayears to seconds
-        time = self.history.time * _seconds_in_megayears 
-        temperature = self.history.temperature
-        time = np.ascontiguousarray(time)
-        temperature = np.ascontiguousarray(temperature)
 
         self.annealing_model(nbins)
         self._get_distribution(track_l0, nbins)
-        reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
-        
-        cdef double[::1] time_memview = time
-        cdef double[::1] temperature_memview = temperature
-        cdef double[::1] reduced_lengths_memview = reduced_lengths
+
+        cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears )
+        cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
+        cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
         cdef int first_node = self.first_node
         cdef double std_length_reduction = self.length_reduction
 
-        cdef double* oldest_age
-        cdef double* ft_model_age
-        cdef double* reduced_density
-        cdef double val1 = 0.
-        cdef double val2 = 0.
-        cdef double val3 = 0.
+        cdef double oldest_age
+        cdef double ft_model_age
+        cdef double reduced_density
 
-        oldest_age = &val1
-        ft_model_age = &val2
-        reduced_density = &val3
+        cdef int node
+        cdef double midLength
+        cdef long secinmyr = _seconds_in_megayears
 
-        ketcham_calculate_model_age(&time_memview[0], &temperature_memview[0],
-                                    &reduced_lengths_memview[0], time_memview.shape[0],
-                                    first_node, oldest_age, ft_model_age,
-                                    std_length_reduction, reduced_density)
+        cdef int numTTNodes = time.shape[0]
 
-        self.oldest_age = oldest_age[0]
-        self.ft_model_age = ft_model_age[0]
-        self.reduced_density = reduced_density[0]
+        reduced_density = 0.0 
+        ft_model_age = 0.0
+        oldest_age = time[first_node] / secinmyr
+
+        for node in range(numTTNodes - 2):
+            midLength = (reduced_lengths[node] + reduced_lengths[node+1]) / 2.0
+            ft_model_age += correct_observational_bias(midLength) * (time[node] - time[node+1])
+            reduced_density += correct_observational_bias(midLength) 
+
+        ft_model_age += correct_observational_bias(reduced_lengths[numTTNodes - 2]) * (time[node] - time[node+1])
+        reduced_density += correct_observational_bias(reduced_lengths[numTTNodes - 2])
+        reduced_density /= std_length_reduction * (numTTNodes-2)
+
+        ft_model_age /= std_length_reduction * secinmyr
+
+        self.oldest_age = oldest_age
+        self.ft_model_age = ft_model_age
+        self.reduced_density = reduced_density
 
         return self.oldest_age, self.ft_model_age, self.reduced_density
 
@@ -220,17 +332,14 @@ class Ketcham1999(AnnealingModel):
         cdef double[::1] temperature_memview = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.zeros((nbins))
         cdef double crmr0 = self.rmr0 
-        cdef int a = 0
-        cdef int* first_node
-
-        first_node = &a
+        cdef int first_node = 0
 
         ketch99_reduced_lengths(&time_memview[0], &temperature_memview[0],
                                 time_memview.shape[0], &reduced_lengths[0],
-                                crmr0, first_node)
+                                crmr0, &first_node)
 
         self.reduced_lengths = np.array(reduced_lengths)
-        self.first_node = first_node[0]
+        self.first_node = first_node
         return self.reduced_lengths, self.first_node
 
     @property
@@ -301,17 +410,14 @@ class Ketcham2007(AnnealingModel):
         cdef double[::1] temperature_memview = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.zeros((nbins))
         cdef double crmr0 = self.rmr0 
-        cdef int a = 0
-        cdef int* first_node
-
-        first_node = &a
+        cdef int first_node = 0
 
         ketch07_reduced_lengths(&time_memview[0], &temperature_memview[0],
                                 time_memview.shape[0], &reduced_lengths[0],
-                                crmr0, first_node)
+                                crmr0, &first_node)
 
         self.reduced_lengths = np.array(reduced_lengths)
-        self.first_node = first_node[0]
+        self.first_node = first_node
         return self.reduced_lengths, self.first_node
 
     @property
