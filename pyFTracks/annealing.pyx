@@ -4,31 +4,10 @@ from .viewer import Viewer
 import cython
 import numpy as np
 cimport numpy as np
-from libc.math cimport exp
+from libc.math cimport exp, pow, log
 
-# cdef extern from "include/utilities.h":
-
-#     cdef void ketcham_sum_population(
-#         int numPDFPts, int numTTNodes, int firstTTNode, int doProject,
-#         int usedCf, double *time, double *temperature, double *pdfAxis,
-#         double *pdf, double *cdf, double  initLength, double min_length,
-#         double  *redLength)
-#     cdef void ketcham_calculate_model_age(
-#         double *time, double *temperature, double  *redLength,
-#         int numTTNodes, int firstNode, double  *oldestModelAge,
-#         double *ftModelAge, double stdLengthReduction, double *redDensity)
-
-cdef extern from "include/ketcham1999.h":
-    
-    cdef void ketch99_reduced_lengths(
-        double *time, double *temperature,int numTTNodes, double *redLength,
-        double rmr0, int *firstTTNode)
-
-cdef extern from "include/ketcham2007.h":
-    
-    cdef void ketch07_reduced_lengths(
-        double *time, double *temperature,int numTTNodes, double *redLength,
-        double rmr0, int *firstTTNode)
+cdef struct annealModel:
+    double c0, c1, c2, c3, a, b
 
 cdef correct_observational_bias(double cparlen):
     """
@@ -106,40 +85,6 @@ class AnnealingModel():
     def kinetic_parameter_type(self, value):
         self._kinetic_parameter_type = value
 
-    # def _get_distribution(self, track_l0, nbins=200):
-    
-    #     cdef double init_length = track_l0
-        
-    #     time = self.history.time * _seconds_in_megayears 
-    #     temperature = self.history.temperature
-    #     time = np.ascontiguousarray(time)
-    #     temperature = np.ascontiguousarray(temperature)
-    #     reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
-    
-    #     cdef double[::1] time_memview = time
-    #     cdef double[::1] temperature_memview = temperature
-    #     cdef double[::1] reduced_lengths_memview = reduced_lengths
-    #     cdef double[::1] pdfAxis = np.zeros((nbins))
-    #     cdef double[::1] cdf = np.zeros((nbins))
-    #     cdef double[::1] pdf = np.zeros((nbins))
-    #     cdef int first_node = self.first_node
-    #     cdef double min_length = self.min_length
-    #     cdef int project = self.use_projected_track
-    #     cdef int usedCf = self.use_Cf_irradiation
-    
-    #     ketcham_sum_population(nbins, time_memview.shape[0], first_node,
-    #                            <int> project, <int> usedCf, &time_memview[0],
-    #                            &temperature_memview[0], &pdfAxis[0], &pdf[0],
-    #                            &cdf[0], init_length, min_length,
-    #                            &reduced_lengths_memview[0])
-        
-    #     self.pdf_axis = np.array(pdfAxis)
-    #     self.pdf = np.array(pdf) * 0.1
-    #     self.MTL = np.sum(self.pdf_axis * self.pdf) * 200.0 / self.pdf.shape[0] 
-    
-    #     return self.pdf_axis, self.pdf, self.MTL
-
-
     def _get_distribution(self, track_l0, nbins=200):
     
         cdef double init_length = track_l0
@@ -197,8 +142,8 @@ class AnnealingModel():
                             pdf[i] += calc * exp(-(z*z) / 2.0)
 
         cdf[0] = pdf[0]
-        for i in range(num_points_pdf):
-            cdf[i] = cdf[i-1] = ((pdf[i] + pdf[i-1]) / 2.0) * (pdfAxis[i] - pdfAxis[i-1])
+        for i in range(1, num_points_pdf):
+            cdf[i] = cdf[i-1] + ((pdf[i] + pdf[i-1]) / 2.0) * (pdfAxis[i] - pdfAxis[i-1])
        
         if cdf[num_points_pdf - 1] > 0.:
             for i in range(num_points_pdf):
@@ -327,20 +272,85 @@ class Ketcham1999(AnnealingModel):
                 )
         
     def annealing_model(self, nbins=200):
-
-        cdef double[::1] time_memview = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
-        cdef double[::1] temperature_memview = np.ascontiguousarray(self.history.temperature)
+        cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
+        cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.zeros((nbins))
-        cdef double crmr0 = self.rmr0 
+        cdef double crmr0 = self.rmr0
+        cdef int numTTnodes = time.shape[0]
         cdef int first_node = 0
 
-        ketch99_reduced_lengths(&time_memview[0], &temperature_memview[0],
-                                time_memview.shape[0], &reduced_lengths[0],
-                                crmr0, &first_node)
+        cdef int node, nodeB
+        cdef double equivTime
+        cdef double timeInt, x1, x2, x3
+        cdef double totAnnealLen
+        cdef double equivTotAnnLen
+        cdef double k
+        cdef double calc
+        cdef double tempCalc
+        cdef double MIN_OBS_RCMOD = 0.55
 
-        self.reduced_lengths = np.array(reduced_lengths)
-        self.first_node = first_node
-        return self.reduced_lengths, self.first_node
+        # Fanning Curvilinear Model lcMod FC, See Ketcham 1999, Table 5e
+        cdef annealModel modKetch99 = annealModel(
+            c0=-19.844,
+            c1=0.38951,
+            c2=-51.253,
+            c3=-7.6423,
+            a=-0.12327,
+            b=-11.988)
+
+        k = 1 - crmr0
+
+        totAnnealLen = MIN_OBS_RCMOD
+        equivTotAnnLen =  pow(totAnnealLen, 1.0 / k) * (1.0 - crmr0) + crmr0
+
+        equivTime = 0.
+        tempCalc = log(1.0 / ((temperature[numTTnodes - 2] +  temperature[numTTnodes - 1]) / 2.0))
+
+        for node in range(numTTnodes - 2, -1, -1):
+            timeInt = time[node] - time[node + 1] + equivTime
+            x1 = (log(timeInt) - modKetch99.c2) / (tempCalc - modKetch99.c3)
+            x2 = 1.0 + modKetch99.a * (modKetch99.c0 + modKetch99.c1 * x1)
+            reduced_lengths[node] = pow(x2, 1.0 / modKetch99.a)
+            x3 = 1.0 - modKetch99.b * reduced_lengths[node]
+
+            if x3 < 0:
+                reduced_lengths[node] = 0.0
+            else:
+                reduced_lengths[node] = pow(x3, 1.0 / modKetch99.b)
+
+            if reduced_lengths[node] < equivTotAnnLen:
+                reduced_lengths[node] = 0.
+
+            # Check to see if we've reached the end of the length distribution
+            # If so, we then do the kinetic conversion.
+
+            if reduced_lengths[node] == 0.0 or node == 0:
+                if node > 0:
+                    node += 1
+                first_node = node
+
+                for nodeB in range(first_node, numTTnodes - 1):
+                    if reduced_lengths[nodeB] < crmr0:
+                        reduced_lengths[nodeB] = 0.0
+                        first_node = nodeB
+                    else:
+                        # This is equation 8 from Ketcham et al, 1999
+                        reduced_lengths[nodeB] = pow((reduced_lengths[nodeB] - crmr0) / (1.0 - crmr0), k)
+                        if reduced_lengths[nodeB] < totAnnealLen:
+                            reduced_lengths[nodeB] = 0.
+                            first_node = nodeB
+        
+                self.reduced_lengths = np.array(reduced_lengths)
+                self.first_node = first_node
+                return self.reduced_lengths, self.first_node
+
+            # Update tiq for this time step
+            if reduced_lengths[node] < 0.999:
+                tempCalc = log(1.0 / ((temperature[node-1] + temperature[node]) / 2.0))
+                equivTime = pow((1.0 - pow(reduced_lengths[node], modKetch99.b)) / modKetch99.b, modKetch99.a)
+                equivTime = ((equivTime - 1.0) / modKetch99.a - modKetch99.c0) / modKetch99.c1
+                equivTime = exp(equivTime * (tempCalc - modKetch99.c3) + modKetch99.c2)
+        
 
     @property
     def rmr0(self):
@@ -405,20 +415,77 @@ class Ketcham2007(AnnealingModel):
                 )
 
     def annealing_model(self, nbins=200):
-
-        cdef double[::1] time_memview = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
-        cdef double[::1] temperature_memview = np.ascontiguousarray(self.history.temperature)
+        cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
+        cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.zeros((nbins))
-        cdef double crmr0 = self.rmr0 
+        cdef double crmr0 = self.rmr0
+        cdef int numTTnodes = time.shape[0]
         cdef int first_node = 0
 
-        ketch07_reduced_lengths(&time_memview[0], &temperature_memview[0],
-                                time_memview.shape[0], &reduced_lengths[0],
-                                crmr0, &first_node)
+        cdef int node, nodeB
+        cdef double equivTime
+        cdef double timeInt, x1, x2
+        cdef double totAnnealLen
+        cdef double equivTotAnnLen
+        cdef double k
+        cdef double calc
+        cdef double tempCalc
+        cdef double MIN_OBS_RCMOD = 0.55
 
-        self.reduced_lengths = np.array(reduced_lengths)
-        self.first_node = first_node
-        return self.reduced_lengths, self.first_node
+        # Fanning Curvilinear Model lcMod FC, See Ketcham 1999, Table 5e
+        cdef annealModel modKetch07 = annealModel(
+            c0=0.39528,
+            c1=0.01073,
+            c2=-65.12969,
+            c3=-7.91715,
+            a=0.04672,
+            b=0)
+
+        k = 1.04 - crmr0
+
+        totAnnealLen = MIN_OBS_RCMOD
+        equivTotAnnLen =  pow(totAnnealLen, 1.0 / k) * (1.0 - crmr0) + crmr0
+
+        equivTime = 0.
+        tempCalc = log(1.0 / ((temperature[numTTnodes - 2] +  temperature[numTTnodes - 1]) / 2.0))
+
+        for node in range(numTTnodes - 2, -1, -1):
+            timeInt = time[node] - time[node + 1] + equivTime
+            x1 = (log(timeInt) - modKetch07.c2) / (tempCalc - modKetch07.c3)
+            x2 = pow(modKetch07.c0 + modKetch07.c1 * x1, 1.0 / modKetch07.a) + 1.0
+            reduced_lengths[node] = 1.0 / x2
+
+            if reduced_lengths[node] < equivTotAnnLen:
+                reduced_lengths[node] = 0.
+            # Check to see if we've reached the end of the length distribution
+            # If so, we then do the kinetic conversion.
+            if reduced_lengths[node] == 0.0 or node == 0:
+                if node > 0:
+                    node += 1
+                first_node = node
+
+                for nodeB in range(first_node, numTTnodes - 1):
+                    if reduced_lengths[nodeB] < crmr0:
+                        reduced_lengths[nodeB] = 0.0
+                        first_node = nodeB
+                    else:
+                        # This is equation 8 from Ketcham et al, 1999
+                        reduced_lengths[nodeB] = pow((reduced_lengths[nodeB] - crmr0) / (1.0 - crmr0), k)
+                        if reduced_lengths[nodeB] < totAnnealLen:
+                            reduced_lengths[nodeB] = 0.
+                            first_node = nodeB
+        
+                self.reduced_lengths = np.array(reduced_lengths)
+                self.first_node = first_node
+                return self.reduced_lengths, self.first_node
+
+            # Update tiq for this time step
+            if reduced_lengths[node] < 0.999:
+                tempCalc = log(1.0 / ((temperature[node-1] + temperature[node]) / 2.0))
+                equivTime = pow(1.0 / reduced_lengths[node] - 1.0, modKetch07.a)
+                equivTime = (equivTime - modKetch07.c0) / modKetch07.c1
+                equivTime = exp(equivTime * (tempCalc - modKetch07.c3) + modKetch07.c2)
+
 
     @property
     def rmr0(self):
