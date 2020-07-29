@@ -198,7 +198,7 @@ class AnnealingModel():
 
         cdef int node
         cdef double midLength
-        cdef long secinmyr = _seconds_in_megayears
+        cdef long long secinmyr = _seconds_in_megayears
 
         cdef int numTTNodes = time.shape[0]
 
