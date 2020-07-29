@@ -7,7 +7,6 @@ cimport numpy as np
 from libc.math cimport exp, pow, log
 
 
-
 cdef struct annealModel:
     double c0, c1, c2, c3, a, b
 
@@ -53,13 +52,11 @@ _seconds_in_megayears = 31556925974700
 class AnnealingModel():
 
     def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False, min_length=2.15,
-                 length_reduction=0.893):
+                 use_Cf_irradiation=False, min_length=2.15)
 
         self.use_projected_track = use_projected_track
         self.use_Cf_irradiation = use_Cf_irradiation
         self.min_length = min_length
-        self.length_reduction = length_reduction
         self._kinetic_parameter = None
         self._kinetic_parameter_type = None
 
@@ -88,13 +85,14 @@ class AnnealingModel():
         self._kinetic_parameter_type = value
 
     def _get_distribution(self, track_l0, nbins=200):
-    
+        
+        rlengths, first_node = self.annealing_model()
         cdef double init_length = track_l0
          
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
-        cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
-        cdef int first_node = self.first_node
+        cdef double[::1] reduced_lengths = np.ascontiguousarray(rlengths)
+        cdef int first_node = first_node
         cdef double[::1] pdfAxis = np.zeros((nbins))
         cdef double[::1] cdf = np.zeros((nbins))
         cdef double[::1] pdf = np.zeros((nbins))
@@ -124,6 +122,11 @@ class AnnealingModel():
             wt2 = exp(U238SEC * time[j+1]) / U238SEC
             weight = wt1 - wt2
             wt1 = wt2
+
+            # Californium irradiation of apatite can be a useful technique for increasing the number
+            # of confined tracks. It will however change the biasing of track detection.
+            # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
+            # use the empirical function provided by Ketcham et al 1999.
             if usedCf:
                 rmLen = 1.396 * reduced_lengths[j] - 0.4017
             else:
@@ -132,6 +135,7 @@ class AnnealingModel():
                 rLen = reduced_lengths[j]
             else:
                 rLen = rmLen
+
             rStDev = calculate_reduced_stddev(rLen, project)
             obsBias = correct_observational_bias(reduced_lengths[j])
             calc = weight * obsBias / (rStDev * SQRT2PI)
@@ -147,6 +151,7 @@ class AnnealingModel():
         for i in range(1, num_points_pdf):
             cdf[i] = cdf[i-1] + ((pdf[i] + pdf[i-1]) / 2.0) * (pdfAxis[i] - pdfAxis[i-1])
        
+        # normalise
         if cdf[num_points_pdf - 1] > 0.:
             for i in range(num_points_pdf):
                 pdf[i] = pdf[i] / cdf[num_points_pdf - 1]
@@ -158,16 +163,34 @@ class AnnealingModel():
     
         return self.pdf_axis, self.pdf, self.MTL
 
-    def calculate_age(self, track_l0):
+    def calculate_age(self, track_l0, std_length_reduction=0.893):
+        """ Predict the pooled fission-track age 
+        
+        We assume that each time step of length dt will contribute dt to the
+        total fission track age, modified by the amount of track density reduction of
+        the population in that time step, relative to the age standard.
 
-        self.annealing_model()
+        The total age is the sum of all contributions
+
+        std_length_reduction: Estimated fission track density reduction in the age standard.
+        The density reduction in the age standard is calculated using its estimated
+        track length reduction, using the assumption that density reduction is proportional to
+        length reduction, and that spontaneaous fission track are initially as long as induced
+        track.
+        
+        If for a fission-track worker the Durango apatite has a measured present day spontaneous
+        mean track length of 14.47 um, and a mean induced track length of 16.21, them the
+        estimated length reduction is 14.47/16.21 = 0.893
+        """
+
         self._get_distribution(track_l0)
 
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears )
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
         cdef int first_node = self.first_node
-        cdef double std_length_reduction = self.length_reduction
+
+        cdef double std_length_reduction = std_length_reduction
 
         cdef double oldest_age
         cdef double ft_model_age
@@ -184,6 +207,8 @@ class AnnealingModel():
         oldest_age = time[first_node] / secinmyr
 
         for node in range(numTTNodes - 2):
+            # Take midpoint length as the mean of the endpoints. This is conform to
+            # Willett (1992) and is also described in the Ketcham 2000 AFTSolve implementation.
             midLength = (reduced_lengths[node] + reduced_lengths[node+1]) / 2.0
             ft_model_age += correct_observational_bias(midLength) * (time[node] - time[node+1])
             reduced_density += correct_observational_bias(midLength) 
@@ -264,14 +289,11 @@ class Ketcham1999(AnnealingModel):
                           "RMR0": lambda x: x}
 
     def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False, min_length=2.15,
-                 length_reduction=0.893):
+                 use_Cf_irradiation=False, min_length=2.15):
 
         super(Ketcham1999, self).__init__(
                 use_projected_track,
-                use_Cf_irradiation, min_length,
-                length_reduction
-                )
+                use_Cf_irradiation, min_length)
         
     def annealing_model(self):
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
@@ -406,14 +428,11 @@ class Ketcham2007(AnnealingModel):
                           "RMR0": lambda x: x}
 
     def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False, min_length=2.15,
-                 length_reduction=0.893):
+                 use_Cf_irradiation=False, min_length=2.15)
 
         super(Ketcham2007, self).__init__(
                 use_projected_track,
-                use_Cf_irradiation, min_length,
-                length_reduction
-                )
+                use_Cf_irradiation, min_length)
 
     def annealing_model(self):
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
