@@ -52,7 +52,7 @@ _seconds_in_megayears = 31556925974700
 class AnnealingModel():
 
     def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False, min_length=2.15)
+                 use_Cf_irradiation=False, min_length=2.15):
 
         self.use_projected_track = use_projected_track
         self.use_Cf_irradiation = use_Cf_irradiation
@@ -86,13 +86,13 @@ class AnnealingModel():
 
     def _get_distribution(self, track_l0, nbins=200):
         
-        rlengths, first_node = self.annealing_model()
+        rlengths, fst_node = self.annealing_model()
         cdef double init_length = track_l0
          
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.ascontiguousarray(rlengths)
-        cdef int first_node = first_node
+        cdef int first_node = fst_node
         cdef double[::1] pdfAxis = np.zeros((nbins))
         cdef double[::1] cdf = np.zeros((nbins))
         cdef double[::1] pdf = np.zeros((nbins))
@@ -190,7 +190,7 @@ class AnnealingModel():
         cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
         cdef int first_node = self.first_node
 
-        cdef double std_length_reduction = std_length_reduction
+        cdef double cstd_length_reduction = std_length_reduction
 
         cdef double oldest_age
         cdef double ft_model_age
@@ -215,9 +215,9 @@ class AnnealingModel():
 
         ft_model_age += correct_observational_bias(reduced_lengths[numTTNodes - 2]) * (time[node] - time[node+1])
         reduced_density += correct_observational_bias(reduced_lengths[numTTNodes - 2])
-        reduced_density /= std_length_reduction * (numTTNodes-2)
+        reduced_density /= cstd_length_reduction * (numTTNodes-2)
 
-        ft_model_age /= std_length_reduction * secinmyr
+        ft_model_age /= cstd_length_reduction * secinmyr
 
         self.oldest_age = oldest_age
         self.ft_model_age = ft_model_age
@@ -428,7 +428,7 @@ class Ketcham2007(AnnealingModel):
                           "RMR0": lambda x: x}
 
     def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False, min_length=2.15)
+                 use_Cf_irradiation=False, min_length=2.15):
 
         super(Ketcham2007, self).__init__(
                 use_projected_track,

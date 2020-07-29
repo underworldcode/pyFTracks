@@ -4,13 +4,6 @@ import numpy as np
 cimport numpy as np
 from libc.math cimport fabs
 
-cdef extern from "include/utilities.h":
-
-    cdef int refine_history(
-        double *time, double *temperature, int npoints,
-        double max_temp_per_step, double max_temp_step_near_ta,
-        double *new_time, double *new_temperature, int *new_npoints)
-
 
 cdef calculate_annealing_temperature(double abs_gradient):
     """ Calculate the annealing temperature based on absolute temperature gradient
