@@ -117,7 +117,7 @@ class AnnealingModel():
 
         wt1 = exp(U238SEC * time[first_node]) / U238SEC
 
-        for j in range(numTTNodes - 1):
+        for j in range(first_node, numTTNodes - 1):
 
             wt2 = exp(U238SEC * time[j+1]) / U238SEC
             weight = wt1 - wt2
