@@ -21,12 +21,15 @@ class MonteCarloPathGenerator(object):
         self.TTPaths = None
         
     def add_constraint(self, constraint):
-        self.constraints.append(constraint)
+        
+        if isinstance(constraint, list):
+            self.constraints += constraint
+        else:    
+            self.constraints.append(constraint)
         return self.constraints
     
     def clear_constraints(self):
         self.constraints = []
-        return self.constraints
         
     def generate_paths(self):
         
@@ -71,20 +74,21 @@ class MonteCarloPathGenerator(object):
         ax.set_xlim(self.TTPaths[:, :, 0].max(), self.TTPaths[:, :, 0].min())
         ax.set_ylim(self.TTPaths[:, :, 1].max(), self.TTPaths[:, :, 1].min())
         
+        lines = LineCollection(self.TTPaths, linestyle='solid')
+        ax.add_collection(lines)       
+        
         patches = []
         
         for constrain in self.constraints:
             dx = abs(constrain["time"][1] - constrain["time"][0]) * self.fact_time
             dy = abs(constrain["temperature"][1] - constrain["temperature"][0]) * self.fact_temperature
-            x = dx / 2.0
-            y = dy / 2.0
+            x = constrain["time"][0]* self.fact_time
+            y = constrain["temperature"][0] * self.fact_temperature
             print(x, y, dx, dy)
             patches.append(Rectangle([x, y], dx, dy))
             
-#         rectangles = PatchCollection(patches, color="red")
-#         ax.add_collection(rectangles)
+        rectangles = PatchCollection(patches, color="red",  facecolor='none', zorder=20)
+        ax.add_collection(rectangles)
         
-        lines = LineCollection(self.TTPaths, linestyle='solid')
-        ax.add_collection(lines)
         ax.set_title('Time Temperature Paths')
         plt.show() 
