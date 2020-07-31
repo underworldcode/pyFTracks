@@ -89,7 +89,7 @@ class AnnealingModel():
         rlengths, fst_node = self.annealing_model()
         cdef double init_length = track_l0
          
-        cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
+        cdef double[::1] time = np.ascontiguousarray(self.history.time)
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.ascontiguousarray(rlengths)
         cdef int first_node = fst_node
@@ -106,7 +106,7 @@ class AnnealingModel():
         cdef double weight, rLen, rStDev, obsBias, rmLen, calc, z
         cdef double wt1, wt2
 
-        cdef double U238SEC = 4.91575e-18
+        cdef double U238MYR = 1.5512595886013153e-4
         cdef double SQRT2PI = 2.50662827463
 
         for i in range(num_points_pdf):
@@ -115,11 +115,11 @@ class AnnealingModel():
         for i in range(num_points_pdf):
             pdfAxis[i] = <double>(i * 1.0 + 0.5) * 20.0 / num_points_pdf
 
-        wt1 = exp(U238SEC * time[first_node]) / U238SEC
+        wt1 = exp(U238MYR * time[first_node]) / U238MYR
 
         for j in range(first_node, numTTNodes - 1):
 
-            wt2 = exp(U238SEC * time[j+1]) / U238SEC
+            wt2 = exp(U238MYR * time[j+1]) / U238MYR
             weight = wt1 - wt2
             wt1 = wt2
 
@@ -139,27 +139,21 @@ class AnnealingModel():
             rStDev = calculate_reduced_stddev(rLen, project)
             obsBias = correct_observational_bias(reduced_lengths[j])
             calc = weight * obsBias / (rStDev * SQRT2PI)
+            #reduced_lengths[j] = reduced_lengths[j] * weight
 
             if rLen > 0:
                 for i in range(num_points_pdf):
                     if pdfAxis[i] >= min_length:
                         z = (rLen - pdfAxis[i] / init_length) / rStDev
-                        if z <= 4:
-                            pdf[i] += calc * exp(-(z*z) / 2.0)
+                        pdf[i] += calc * exp(-(z*z) / 2.0)
 
-        cdf[0] = pdf[0]
-        for i in range(1, num_points_pdf):
-            cdf[i] = cdf[i-1] + ((pdf[i] + pdf[i-1]) / 2.0) * (pdfAxis[i] - pdfAxis[i-1])
-       
-        # normalise
-        if cdf[num_points_pdf - 1] > 0.:
-            for i in range(num_points_pdf):
-                pdf[i] = pdf[i] / cdf[num_points_pdf - 1]
-                cdf[i] = cdf[i] / cdf[num_points_pdf - 1]
-
+        #self.reduced_lengths = np.array(reduced_lengths)
         self.pdf_axis = np.array(pdfAxis)
-        self.pdf = np.array(pdf) * 0.1
-        self.MTL = np.sum(self.pdf_axis * self.pdf) * 200.0 / self.pdf.shape[0] 
+        self.pdf = np.array(pdf)
+        self.pdf /= self.pdf.sum()
+        self.cdf = self.pdf.cumsum()
+        self.MTL = np.sum(self.pdf_axis * self.pdf)
+        self.STD = np.sqrt(np.sum(self.pdf_axis**2 * self.pdf) - self.MTL**2)
     
         return self.pdf_axis, self.pdf, self.MTL
 
