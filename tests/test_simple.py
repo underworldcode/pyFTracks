@@ -124,9 +124,8 @@ def test_ketcham_1999_Dpar_to_rmr0():
 
 def test_ketcham_1999_clapfu_to_rmr0():
     from pyFTracks.annealing import Ketcham1999
-    from pyFTracks.thermal_history import WOLF1
     model = Ketcham1999()
-    assert(model.convert_Cl_pfu_to_rmr0(0.130) == pytest.approx(0.))
+    assert(model.convert_Cl_pfu_to_rmr0(1.0) == pytest.approx(0.))
     assert(model.convert_Cl_pfu_to_rmr0(0.7) == pytest.approx(0.30169548259180623))
     assert(model.convert_Cl_pfu_to_rmr0(0.4) == pytest.approx(0.6288689335789452))
 
@@ -134,9 +133,9 @@ def test_ohapfu_to_rmr0():
     from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import WOLF1
     model = Ketcham1999()
-    assert(model.convert_OH_pfu_to_rmr0(0.9) == pytest.approx(0.))
-    assert(model.convert_OH_pfu_to_rmr0(0.7) == pytest.approx(0.30169548259180623))
-    assert(model.convert_OH_pfu_to_rmr0(0.4) == pytest.approx(0.6288689335789452))
+    assert(model.convert_OH_pfu_to_rmr0(0.9) == pytest.approx(0.3171578660452086))
+    assert(model.convert_OH_pfu_to_rmr0(0.7) == pytest.approx(0.6712590592085016))
+    assert(model.convert_OH_pfu_to_rmr0(0.4) == pytest.approx(0.8263996762391478))
 
 
 ## Test Code against Hefty
@@ -166,7 +165,7 @@ def test_wolf1_ketcham_1999():
 def test_wolf2_ketcham_1999():
     from pyFTracks.thermal_history import WOLF2
     model = ketcham1999_config1(WOLF2)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(79.5))
     assert(model_age == pytest.approx(66.5))
     # assert(mtl == pytest.approx(13.29))
@@ -175,7 +174,7 @@ def test_wolf2_ketcham_1999():
 def test_wolf3_ketcham_1999():
     from pyFTracks.thermal_history import WOLF3
     model = ketcham1999_config1(WOLF3)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(100.))
     assert(model_age == pytest.approx(87.9))
     # assert(mtl == pytest.approx(13.06))
@@ -184,7 +183,7 @@ def test_wolf3_ketcham_1999():
 def test_wolf4_ketcham_1999():
     from pyFTracks.thermal_history import WOLF4
     model = ketcham1999_config1(WOLF4)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(100.))
     assert(model_age == pytest.approx(85.8))
     # assert(mtl == pytest.approx(12.88))
@@ -193,7 +192,7 @@ def test_wolf4_ketcham_1999():
 def test_wolf5_ketcham_1999():
     from pyFTracks.thermal_history import WOLF5
     model = ketcham1999_config1(WOLF5)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(100.))
     assert(model_age == pytest.approx(26.0))
     # assert(mtl == pytest.approx(9.41))
@@ -211,7 +210,7 @@ def test_vrolij_ketcham_1999():
 def test_flaxmans_ketcham_1999():
     from pyFTracks.thermal_history import FLAXMANS1
     model = ketcham1999_config1(FLAXMANS1)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(0.05))
     assert(model_age == pytest.approx(0.04))
     # assert(mtl == pytest.approx(10.83))
@@ -235,7 +234,7 @@ def ketcham2007_config1(history):
 def test_wolf1_ketcham_2007():
     from pyFTracks.thermal_history import WOLF1
     model = ketcham2007_config1(WOLF1)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(44.0))
     assert(model_age == pytest.approx(44.7))
     # assert(mtl == pytest.approx(14.76))
@@ -244,7 +243,7 @@ def test_wolf1_ketcham_2007():
 def test_wolf2_ketcham_2007():
     from pyFTracks.thermal_history import WOLF2
     model = ketcham2007_config1(WOLF2)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(76.0))
     assert(model_age == pytest.approx(61.9))
     # assert(mtl == pytest.approx(12.83))
@@ -253,7 +252,7 @@ def test_wolf2_ketcham_2007():
 def test_wolf3_ketcham_2007():
     from pyFTracks.thermal_history import WOLF3
     model = ketcham2007_config1(WOLF3)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(100.0))
     assert(model_age == pytest.approx(84.8))
     # assert(mtl == pytest.approx(12.30))
@@ -271,7 +270,7 @@ def test_wolf4_ketcham_2007():
 def test_wolf5_ketcham_2007():
     from pyFTracks.thermal_history import WOLF5
     model = ketcham2007_config1(WOLF5)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(19.5))
     assert(model_age == pytest.approx(7.47))
     # assert(mtl == pytest.approx(11.75))
@@ -280,7 +279,7 @@ def test_wolf5_ketcham_2007():
 def test_vrolij_ketcham_2007():
     from pyFTracks.thermal_history import VROLIJ
     model = ketcham2007_config1(VROLIJ)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(113.))
     assert(model_age == pytest.approx(112.0))
     # assert(mtl == pytest.approx(14.49))
@@ -289,7 +288,7 @@ def test_vrolij_ketcham_2007():
 def test_flaxmans_ketcham_2007():
     from pyFTracks.thermal_history import FLAXMANS1
     model = ketcham2007_config1(FLAXMANS1)
-    old, model_age, reduced = model.calculate_age(16.1)
+    old, model_age, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(0.05))
     assert(model_age == pytest.approx(0.03))
     # assert(mtl == pytest.approx(9.49))
