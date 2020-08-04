@@ -10,16 +10,9 @@ from libc.math cimport exp, pow, log
 cdef struct annealModel:
     double c0, c1, c2, c3, a, b
 
-cdef correct_observational_bias(double cparlen):
+cdef correct_observational_bias(double rcmod):
     """
     Does the conversion from length to density for the Ketcham et al., 1999 model.
-    
-    The routine is also used to estimate bias for population summing.
-    
-    Assumes we're passing in a c-axis-projected length
-    
-    The following text is taken from Forward Inverse and Modeling of LT Thermoch Data
-    Low-T Thermochronology: Techniques, Interpretations and Applications (ed. Reiners an Ehlers)
     
     The observational bias quantifies the relative probability of observation among different
     fission-track populations calculated by the model. Highly annealed populations are less
@@ -32,10 +25,14 @@ cdef correct_observational_bias(double cparlen):
     in a general way by using an empirical function that relates measured fission-track length to
     fission-track density (e,g. Green 1998). The following is taken from Ketcham et al 2000 
     """
-    if (cparlen > 0.765):
-        return 1.600 * cparlen - 0.599
-    if (cparlen >= 0.13):
-        return 9.205 * cparlen * cparlen - 9.157 * cparlen + 2.269
+    if (rcmod >= 0.765):
+        return 1.600 * rcmod - 0.600
+    # because very short fission tracks are undetectable, they should be eliminated from model results.
+    # We assumes a minimum detectable length of 2.18 µm, or a reduced length of 0.13, 
+    # the shortest track observed in over 38,000 measurements in the Carlson et al. (1999) data set.
+    # (Ketcham, 2000)
+    if (rcmod >= 0.13):
+        return 9.205 * rcmod * rcmod - 9.157 * rcmod + 2.269
     return 0.0
 
 
@@ -64,11 +61,10 @@ _seconds_in_megayears = 31556925974700
 class AnnealingModel():
 
     def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False, min_length=2.15):
+                 use_Cf_irradiation=False):
 
         self.use_projected_track = use_projected_track
         self.use_Cf_irradiation = use_Cf_irradiation
-        self.min_length = min_length
         self._kinetic_parameter = None
         self._kinetic_parameter_type = None
 
@@ -99,7 +95,6 @@ class AnnealingModel():
     def _correct_for_track_formation(self):
          
         cdef double[::1] time = np.ascontiguousarray(self.history.time)
-        cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
         cdef int first_node = self.first_node
         cdef int usedCf = self.use_Cf_irradiation
@@ -109,7 +104,7 @@ class AnnealingModel():
         cdef double weight, rmLen
         cdef double wt1, wt2
 
-        cdef double U238MYR = 1.5512595886013153e-4
+        cdef double U238MYR = 1.55125e-4
 
         wt1 = exp(U238MYR * time[first_node]) / U238MYR
 
@@ -119,28 +114,28 @@ class AnnealingModel():
             weight = wt1 - wt2
             wt1 = wt2
             
+            reduced_lengths[j] = reduced_lengths[j] * weight
             # Californium irradiation of apatite can be a useful technique for increasing the number
             # of confined tracks. It will however change the biasing of track detection.
             # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
             # use the empirical function provided by Ketcham et al 1999.
             rmLen = calculate_mean_reduced_length(reduced_lengths[j], usedCf)
-            reduced_lengths[j] = rmLen * weight
+            reduced_lengths[j] = rmLen
 
         self.reduced_lengths = np.array(reduced_lengths)
         return self.reduced_lengths
 
-    def _get_distribution(self, track_l0=16.1, nbins=200):
+    def _get_track_length_distribution(self, track_l0=16.1, nbins=200):
         
         cdef double init_length = track_l0
         cdef double[::1] time = np.ascontiguousarray(self.history.time)
-        cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
         cdef int first_node = self.first_node
 
         cdef double[::1] pdfAxis = np.zeros((nbins))
         cdef double[::1] cdf = np.zeros((nbins))
         cdef double[::1] pdf = np.zeros((nbins))
-        cdef double min_length = self.min_length
+        cdef double min_length = 2.15
         cdef int project = self.use_projected_track
         cdef int num_points_pdf = nbins
         cdef int numTTNodes = time.shape[0]
@@ -200,10 +195,9 @@ class AnnealingModel():
 
         self.annealing_model()
         self._correct_for_track_formation()
-        self._get_distribution(track_l0)
+        self._get_track_length_distribution(track_l0)
 
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears )
-        cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
         cdef int first_node = self.first_node
 
@@ -306,11 +300,11 @@ class Ketcham1999(AnnealingModel):
                           "RMR0": lambda x: x}
 
     def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False, min_length=2.15):
+                 use_Cf_irradiation=False):
 
         super(Ketcham1999, self).__init__(
                 use_projected_track,
-                use_Cf_irradiation, min_length)
+                use_Cf_irradiation)
         
     def annealing_model(self):
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
@@ -328,7 +322,7 @@ class Ketcham1999(AnnealingModel):
         cdef double k
         cdef double calc
         cdef double tempCalc
-        cdef double MIN_OBS_RCMOD = 0.55
+        cdef double MIN_OBS_RCMOD = 0.13
 
         # Fanning Curvilinear Model lcMod FC, See Ketcham 1999, Table 5e
         cdef annealModel modKetch99 = annealModel(
@@ -445,11 +439,11 @@ class Ketcham2007(AnnealingModel):
                           "RMR0": lambda x: x}
 
     def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False, min_length=2.15):
+                 use_Cf_irradiation=False):
 
         super(Ketcham2007, self).__init__(
-                use_projected_track,
-                use_Cf_irradiation, min_length)
+              use_projected_track,
+              use_Cf_irradiation)
 
     def annealing_model(self):
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
@@ -467,7 +461,7 @@ class Ketcham2007(AnnealingModel):
         cdef double k
         cdef double calc
         cdef double tempCalc
-        cdef double MIN_OBS_RCMOD = 0.55
+        cdef double MIN_OBS_RCMOD = 0.13
 
         # Fanning Curvilinear Model lcMod FC, See Ketcham 1999, Table 5e
         cdef annealModel modKetch07 = annealModel(
