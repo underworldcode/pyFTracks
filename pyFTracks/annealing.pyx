@@ -92,40 +92,7 @@ class AnnealingModel():
     def kinetic_parameter_type(self, value):
         self._kinetic_parameter_type = value
 
-    def _correct_for_track_formation(self):
-         
-        cdef double[::1] time = np.ascontiguousarray(self.history.time)
-        cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
-        cdef int first_node = self.first_node
-        cdef int usedCf = self.use_Cf_irradiation
-        cdef int numTTNodes = time.shape[0]
-
-        cdef int i, j
-        cdef double weight, rmLen
-        cdef double wt1, wt2
-
-        cdef double U238MYR = 1.55125e-4
-
-        wt1 = exp(U238MYR * time[first_node]) / U238MYR
-
-        for j in range(first_node, numTTNodes - 1):
-
-            wt2 = exp(U238MYR * time[j+1]) / U238MYR
-            weight = wt1 - wt2
-            wt1 = wt2
-            
-            reduced_lengths[j] = reduced_lengths[j] * weight
-            # Californium irradiation of apatite can be a useful technique for increasing the number
-            # of confined tracks. It will however change the biasing of track detection.
-            # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
-            # use the empirical function provided by Ketcham et al 1999.
-            rmLen = calculate_mean_reduced_length(reduced_lengths[j], usedCf)
-            reduced_lengths[j] = rmLen
-
-        self.reduced_lengths = np.array(reduced_lengths)
-        return self.reduced_lengths
-
-    def _get_track_length_distribution(self, track_l0=16.1, nbins=200):
+    def _sum_populations(self, track_l0=16.1, nbins=200):
         
         cdef double init_length = track_l0
         cdef double[::1] time = np.ascontiguousarray(self.history.time)
@@ -137,14 +104,16 @@ class AnnealingModel():
         cdef double[::1] pdf = np.zeros((nbins))
         cdef double min_length = 2.15
         cdef int project = self.use_projected_track
+        cdef int usedCf = self.use_Cf_irradiation
         cdef int num_points_pdf = nbins
         cdef int numTTNodes = time.shape[0]
 
         cdef int i, j
-        cdef double weight, rStDev, obsBias, calc, z
+        cdef double weight, rStDev, obsBias, calc, rmLen, z
         cdef double wt1, wt2
 
         cdef double SQRT2PI = 2.50662827463
+        cdef double U238MYR = 1.55125e-4
 
         for i in range(num_points_pdf):
             pdf[i] = 0.
@@ -152,16 +121,28 @@ class AnnealingModel():
         for i in range(num_points_pdf):
             pdfAxis[i] = <double>(i * 1.0 + 0.5) * 20.0 / num_points_pdf
 
+        wt1 = exp(U238MYR * time[first_node]) / U238MYR
+
         for j in range(first_node, numTTNodes - 1):
 
-            rStDev = calculate_reduced_stddev(reduced_lengths[j], project)
-            redDensity = correct_observational_bias(reduced_lengths[j])
-            calc = redDensity / (rStDev * SQRT2PI)
+            wt2 = exp(U238MYR * time[j+1]) / U238MYR
+            weight = wt1 - wt2
+            wt1 = wt2
 
-            if reduced_lengths[j] > 0:
+            # Californium irradiation of apatite can be a useful technique for increasing the number
+            # of confined tracks. It will however change the biasing of track detection.
+            # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
+            # use the empirical function provided by Ketcham et al 1999.
+            rmLen = calculate_mean_reduced_length(reduced_lengths[j], usedCf)
+            
+            rStDev = calculate_reduced_stddev(rmLen, project)
+            obsBias = correct_observational_bias(rmLen)
+            calc = weight * obsBias / (rStDev * SQRT2PI)
+
+            if rmLen > 0:
                 for i in range(num_points_pdf):
                     if pdfAxis[i] >= min_length:
-                        z = (reduced_lengths[j] - pdfAxis[i] / init_length) / rStDev
+                        z = (rmLen - pdfAxis[i] / init_length) / rStDev
                         pdf[i] += calc * exp(-(z*z) / 2.0)
 
         self.pdf_axis = np.array(pdfAxis)
@@ -194,8 +175,7 @@ class AnnealingModel():
         """
 
         self.annealing_model()
-        self._correct_for_track_formation()
-        self._get_track_length_distribution(track_l0)
+        self._sum_populations(track_l0)
 
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears )
         cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
@@ -307,7 +287,10 @@ class Ketcham1999(AnnealingModel):
                 use_Cf_irradiation)
         
     def annealing_model(self):
+
+        # Must be in seconds (do conversion)
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
+        # Must be in Kelvin
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef int numTTnodes = time.shape[0]
         cdef double[::1] reduced_lengths = np.zeros(time.shape[0] - 1)
@@ -325,6 +308,9 @@ class Ketcham1999(AnnealingModel):
         cdef double MIN_OBS_RCMOD = 0.13
 
         # Fanning Curvilinear Model lcMod FC, See Ketcham 1999, Table 5e
+        # The preferred equation presented in Ketcham et al 1999, describes the apatite
+        # B2 from the Carlson et al 1999 data set. The Apatite, which is a chlor-hydroxy apatite from
+        # Norway, showed the most resistance to annealing """ 
         cdef annealModel modKetch99 = annealModel(
             c0=-19.844,
             c1=0.38951,
@@ -342,6 +328,10 @@ class Ketcham1999(AnnealingModel):
         tempCalc = log(1.0 / ((temperature[numTTnodes - 2] +  temperature[numTTnodes - 1]) / 2.0))
 
         for node in range(numTTnodes - 2, -1, -1):
+            # We calculate the modeled reduced length (length normalized by
+            # initial length of a fission track parallel to the c-axis (Donelick 1999))
+            # after an isothermal annealing episode at a temperature T (Kelvin) of
+            # duration t (seconds)
             timeInt = time[node] - time[node + 1] + equivTime
             x1 = (log(timeInt) - modKetch99.c2) / (tempCalc - modKetch99.c3)
             x2 = 1.0 + modKetch99.a * (modKetch99.c0 + modKetch99.c1 * x1)
@@ -369,6 +359,12 @@ class Ketcham1999(AnnealingModel):
                         first_node = nodeB
                     else:
                         # This is equation 8 from Ketcham et al, 1999
+                        # Apatite with the composition of B2 are very rare, B2 is
+                        # significantly more resistant than the most common variety, near
+                        # end member fluorapatite.
+                        # Ketcham 1999 showed that the reduced length of any apatite could
+                        # be related to the length of an apatite that is relatively more resistant
+                        # (hence use of B2)
                         reduced_lengths[nodeB] = pow((reduced_lengths[nodeB] - crmr0) / (1.0 - crmr0), k)
                         if reduced_lengths[nodeB] < totAnnealLen:
                             reduced_lengths[nodeB] = 0.
