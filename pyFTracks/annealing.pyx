@@ -47,6 +47,18 @@ cdef calculate_reduced_stddev(double redLength, int doProject):
     else:
         return(0.4572 - 0.8815 * redLength + 0.4947 * redLength * redLength)
 
+
+cdef calculate_mean_reduced_length(double redLength, int usedCf):
+    # Californium irradiation of apatite can be a useful technique for increasing the number
+    # of confined tracks. It will however change the biasing of track detection.
+    # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
+    # use the empirical function provided by Ketcham et al 1999.
+    if usedCf:
+        return 1.396 * redLength - 0.4017
+    else:
+        return -1.499 * redLength * redLength + 4.150 * redLength - 1.656
+
+
 _seconds_in_megayears = 31556925974700
 
 class AnnealingModel():
@@ -84,36 +96,20 @@ class AnnealingModel():
     def kinetic_parameter_type(self, value):
         self._kinetic_parameter_type = value
 
-    def _get_distribution(self, track_l0, nbins=200):
-        
-        rlengths, fst_node = self.annealing_model()
-        cdef double init_length = track_l0
+    def _correct_for_track_formation(self):
          
         cdef double[::1] time = np.ascontiguousarray(self.history.time)
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
-        cdef double[::1] reduced_lengths = np.ascontiguousarray(rlengths)
-        cdef int first_node = fst_node
-        cdef double[::1] pdfAxis = np.zeros((nbins))
-        cdef double[::1] cdf = np.zeros((nbins))
-        cdef double[::1] pdf = np.zeros((nbins))
-        cdef double min_length = self.min_length
-        cdef int project = self.use_projected_track
+        cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
+        cdef int first_node = self.first_node
         cdef int usedCf = self.use_Cf_irradiation
-        cdef int num_points_pdf = nbins
         cdef int numTTNodes = time.shape[0]
 
         cdef int i, j
-        cdef double weight, rLen, rStDev, obsBias, rmLen, calc, z
+        cdef double weight, rmLen
         cdef double wt1, wt2
 
         cdef double U238MYR = 1.5512595886013153e-4
-        cdef double SQRT2PI = 2.50662827463
-
-        for i in range(num_points_pdf):
-            pdf[i] = 0.
-
-        for i in range(num_points_pdf):
-            pdfAxis[i] = <double>(i * 1.0 + 0.5) * 20.0 / num_points_pdf
 
         wt1 = exp(U238MYR * time[first_node]) / U238MYR
 
@@ -122,32 +118,57 @@ class AnnealingModel():
             wt2 = exp(U238MYR * time[j+1]) / U238MYR
             weight = wt1 - wt2
             wt1 = wt2
-
+            
             # Californium irradiation of apatite can be a useful technique for increasing the number
             # of confined tracks. It will however change the biasing of track detection.
             # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
             # use the empirical function provided by Ketcham et al 1999.
-            if usedCf:
-                rmLen = 1.396 * reduced_lengths[j] - 0.4017
-            else:
-                rmLen = -1.499 * reduced_lengths[j] * reduced_lengths[j] + 4.150 * reduced_lengths[j] - 1.656
-            if project:
-                rLen = reduced_lengths[j]
-            else:
-                rLen = rmLen
+            rmLen = calculate_mean_reduced_length(reduced_lengths[j], usedCf)
+            reduced_lengths[j] = rmLen * weight
 
-            rStDev = calculate_reduced_stddev(rLen, project)
-            obsBias = correct_observational_bias(reduced_lengths[j])
-            calc = weight * obsBias / (rStDev * SQRT2PI)
-            #reduced_lengths[j] = reduced_lengths[j] * weight
+        self.reduced_lengths = np.array(reduced_lengths)
+        return self.reduced_lengths
 
-            if rLen > 0:
+    def _get_distribution(self, track_l0=16.1, nbins=200):
+        
+        cdef double init_length = track_l0
+        cdef double[::1] time = np.ascontiguousarray(self.history.time)
+        cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
+        cdef double[::1] reduced_lengths = np.ascontiguousarray(self.reduced_lengths)
+        cdef int first_node = self.first_node
+
+        cdef double[::1] pdfAxis = np.zeros((nbins))
+        cdef double[::1] cdf = np.zeros((nbins))
+        cdef double[::1] pdf = np.zeros((nbins))
+        cdef double min_length = self.min_length
+        cdef int project = self.use_projected_track
+        cdef int num_points_pdf = nbins
+        cdef int numTTNodes = time.shape[0]
+
+        cdef int i, j
+        cdef double weight, rStDev, obsBias, calc, z
+        cdef double wt1, wt2
+
+        cdef double SQRT2PI = 2.50662827463
+
+        for i in range(num_points_pdf):
+            pdf[i] = 0.
+
+        for i in range(num_points_pdf):
+            pdfAxis[i] = <double>(i * 1.0 + 0.5) * 20.0 / num_points_pdf
+
+        for j in range(first_node, numTTNodes - 1):
+
+            rStDev = calculate_reduced_stddev(reduced_lengths[j], project)
+            redDensity = correct_observational_bias(reduced_lengths[j])
+            calc = redDensity / (rStDev * SQRT2PI)
+
+            if reduced_lengths[j] > 0:
                 for i in range(num_points_pdf):
                     if pdfAxis[i] >= min_length:
-                        z = (rLen - pdfAxis[i] / init_length) / rStDev
+                        z = (reduced_lengths[j] - pdfAxis[i] / init_length) / rStDev
                         pdf[i] += calc * exp(-(z*z) / 2.0)
 
-        #self.reduced_lengths = np.array(reduced_lengths)
         self.pdf_axis = np.array(pdfAxis)
         self.pdf = np.array(pdf)
         self.pdf /= self.pdf.sum()
@@ -157,7 +178,7 @@ class AnnealingModel():
     
         return self.pdf_axis, self.pdf, self.MTL
 
-    def calculate_age(self, track_l0, std_length_reduction=0.893):
+    def calculate_age(self, track_l0=16.1, std_length_reduction=0.893):
         """ Predict the pooled fission-track age 
         
         We assume that each time step of length dt will contribute dt to the
@@ -177,6 +198,8 @@ class AnnealingModel():
         estimated length reduction is 14.47/16.21 = 0.893
         """
 
+        self.annealing_model()
+        self._correct_for_track_formation()
         self._get_distribution(track_l0)
 
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears )
