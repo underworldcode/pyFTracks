@@ -381,6 +381,9 @@ class Ketcham1999(AnnealingModel):
                 equivTime = ((equivTime - 1.0) / modKetch99.a - modKetch99.c0) / modKetch99.c1
                 equivTime = exp(equivTime * (tempCalc - modKetch99.c3) + modKetch99.c2)
         
+        self.reduced_lengths = np.array(reduced_lengths)
+        self.first_node = first_node
+        return self.reduced_lengths, self.first_node
 
     @property
     def rmr0(self):
