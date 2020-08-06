@@ -44,17 +44,18 @@ class MonteCarloPathGenerator(object):
         temperature = np.random.rand(self.npaths, npoints)
 
         for index, constrain in enumerate(self.constraints):
-            constrain["time"] = constrain['time'] / self.fact_time
-            mask = ~np.any((time >= min(constrain['time'])) & (time <= max(constrain['time'])), axis=1)
-            time[mask, index] = np.random.rand(np.count_nonzero(mask),) * (max(constrain['time']) - min(constrain['time'])) + min(constrain['time'])
+            constrain_time = constrain['time'] / self.fact_time
+            mask = ~np.any((time >= min(constrain_time)) & (time <= max(constrain_time)), axis=1)
+            time[mask, index] = np.random.rand(np.count_nonzero(mask),) * (max(constrain_time) - min(constrain_time)) + min(constrain_time)
 
         time = np.sort(time, axis=1)    
 
         for index, constrain in enumerate(self.constraints):
-            constrain["temperature"] = constrain['temperature'] / self.fact_temperature
-            i, j = np.where((time >= min(constrain['time'])) & (time <= max(constrain['time'])))
+            constrain_temp = constrain['temperature'] / self.fact_temperature
+            constrain_time = constrain['time'] / self.fact_time
+            i, j = np.where((time >= min(constrain_time)) & (time <= max(constrain_time)))
             shape = i.shape[0]
-            temperature[i, j] = np.random.rand(shape,) * (max(constrain['temperature']) - min(constrain['temperature'])) + min(constrain['temperature']) 
+            temperature[i, j] = np.random.rand(shape,) * (max(constrain_temp) - min(constrain_temp)) + min(constrain_temp) 
             
         self.TTPaths = np.ndarray((self.npaths, npoints, 2))
         self.TTPaths[:, :, 0] = time * self.fact_time
@@ -74,21 +75,20 @@ class MonteCarloPathGenerator(object):
         ax.set_xlim(self.TTPaths[:, :, 0].max(), self.TTPaths[:, :, 0].min())
         ax.set_ylim(self.TTPaths[:, :, 1].max(), self.TTPaths[:, :, 1].min())
         
-        lines = LineCollection(self.TTPaths, linestyle='solid')
+        lines = LineCollection(self.TTPaths, linestyle='solid', colors=colors)
         ax.add_collection(lines)       
         
         patches = []
         
         for constrain in self.constraints:
-            dx = abs(constrain["time"][1] - constrain["time"][0]) * self.fact_time
-            dy = abs(constrain["temperature"][1] - constrain["temperature"][0]) * self.fact_temperature
-            x = constrain["time"][0]* self.fact_time
-            y = constrain["temperature"][0] * self.fact_temperature
-            print(x, y, dx, dy)
+            dx = abs(constrain["time"][1] - constrain["time"][0])
+            dy = abs(constrain["temperature"][1] - constrain["temperature"][0])
+            x = constrain["time"][0]
+            y = constrain["temperature"][0]
             patches.append(Rectangle([x, y], dx, dy))
             
         rectangles = PatchCollection(patches, color="red",  facecolor='none', zorder=20)
         ax.add_collection(rectangles)
         
         ax.set_title('Time Temperature Paths')
-        plt.show() 
+        return ax
