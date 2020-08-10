@@ -25,6 +25,19 @@ class ThermalHistory(object):
          name: a name for the thermal-history.
 
         """
+
+        time = np.array(time)
+        temperature = np.array(temperature)
+
+        # If time is not increasing, reverse arrays
+        if not np.all(np.diff(time) > 0):
+            time = time[::-1]
+            temperature = temperature[::-1]
+
+        if np.any(temperature < 273.):
+            print("It looks like you have entered temperature in Celsius...Converting temperature to Kelvin")
+            temperature += 273.15  
+
         self.name = name
         self.input_time = time
         self.input_temperature = temperature

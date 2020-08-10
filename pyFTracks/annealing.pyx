@@ -6,6 +6,8 @@ import numpy as np
 cimport numpy as np
 from libc.math cimport exp, pow, log
 
+_MIN_OBS_RCMOD = 0.55
+
 
 cdef struct annealModel:
     double c0, c1, c2, c3, a, b
@@ -31,7 +33,7 @@ cdef correct_observational_bias(double rcmod):
     # We assumes a minimum detectable length of 2.18 µm, or a reduced length of 0.13, 
     # the shortest track observed in over 38,000 measurements in the Carlson et al. (1999) data set.
     # (Ketcham, 2000)
-    if (rcmod >= 0.13):
+    if (rcmod >= _MIN_OBS_RCMOD):
         return 9.205 * rcmod * rcmod - 9.157 * rcmod + 2.269
     return 0.0
 
@@ -143,7 +145,8 @@ class AnnealingModel():
                 for i in range(num_points_pdf):
                     if pdfAxis[i] >= min_length:
                         z = (rmLen - pdfAxis[i] / init_length) / rStDev
-                        pdf[i] += calc * exp(-(z*z) / 2.0)
+                        if z <= 4.:
+                            pdf[i] += calc * exp(-(z*z) / 2.0)
 
         self.pdf_axis = np.array(pdfAxis)
         self.pdf = np.array(pdf)
@@ -151,7 +154,7 @@ class AnnealingModel():
         self.cdf = self.pdf.cumsum()
         self.MTL = np.sum(self.pdf_axis * self.pdf)
         self.STD = np.sqrt(np.sum(self.pdf_axis**2 * self.pdf) - self.MTL**2)
-    
+
         return self.pdf_axis, self.pdf, self.MTL
 
     def calculate_age(self, track_l0=16.1, std_length_reduction=0.893):
@@ -305,7 +308,7 @@ class Ketcham1999(AnnealingModel):
         cdef double k
         cdef double calc
         cdef double tempCalc
-        cdef double MIN_OBS_RCMOD = 0.13
+        cdef double MIN_OBS_RCMOD = _MIN_OBS_RCMOD
 
         # Fanning Curvilinear Model lcMod FC, See Ketcham 1999, Table 5e
         # The preferred equation presented in Ketcham et al 1999, describes the apatite
@@ -460,7 +463,7 @@ class Ketcham2007(AnnealingModel):
         cdef double k
         cdef double calc
         cdef double tempCalc
-        cdef double MIN_OBS_RCMOD = 0.13
+        cdef double MIN_OBS_RCMOD = _MIN_OBS_RCMOD
 
         # Fanning Curvilinear Model lcMod FC, See Ketcham 1999, Table 5e
         cdef annealModel modKetch07 = annealModel(
