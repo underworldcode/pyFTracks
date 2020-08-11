@@ -6,13 +6,24 @@ class MonteCarloPathGenerator(object):
     
     def __init__(self, time_range, temperature_range, npaths=1000, inbetween_points=2):
         
+        time_range = np.array(time_range)
+        temperature_range = np.array(temperature_range)
+
+        # If time is not increasing, reverse arrays
+        if not np.all(np.diff(time_range) > 0):
+            time_range = time_range[::-1]
+
+        if np.any(temperature_range < 273.):
+            print("It looks like you have entered temperature in Celsius...Converting temperature to Kelvin")
+            temperature_range = temperature_range + 273.15  
+
         self.time_range = np.array(time_range)
         self.fact_time = self.time_range[-1]
         self.time_range = self.time_range / self.fact_time
 
         self.temperature_range = np.array(temperature_range)
-        self.fact_temperature = self.temperature_range[-1]
-        self.temperature_range = self.temperature_range / self.fact_temperature
+        self.fact_temperature = np.diff(self.temperature_range)
+        self.temperature_range = (self.temperature_range - 273.15) / self.fact_temperature
         
         self.inbetween_points = self.n = inbetween_points
         self.npaths = npaths
@@ -33,10 +44,27 @@ class MonteCarloPathGenerator(object):
         self._annealing_model = value
         
     def add_constraint(self, constraint):
+
+        def convert_time(time):
+            time = np.array(time)
+            if np.all(time < 0.):
+                time = time[::-1]
+            return time
+
+        def convert_temperature(temperature):
+            temperature = np.array(temperature) 
+            if np.any(temperature < 273):
+                temperature = temperature + 273.15
+            return temperature
         
         if isinstance(constraint, list):
             self.constraints += constraint
+            for item in constraint:
+                item["time"] = convert_time(item["time"])
+                item["temperature"] = convert_temperature(item["temperature"])
         else:    
+            constraint["time"] = convert_time(constraint["time"])
+            constraint["temperature"] = convert_temperature(constraint["temperature"])
             self.constraints.append(constraint)
         return self.constraints
     
@@ -53,8 +81,6 @@ class MonteCarloPathGenerator(object):
         # Final time is always present time
         time[:, -1] = 0.
 
-        temperature = np.random.rand(self.npaths, npoints)
-
         for index, constrain in enumerate(self.constraints):
             constrain_time = constrain['time'] / self.fact_time
             mask = ~np.any((time >= min(constrain_time)) & (time <= max(constrain_time)), axis=1)
@@ -62,8 +88,10 @@ class MonteCarloPathGenerator(object):
 
         time = np.sort(time, axis=1)    
 
+        temperature = np.random.rand(self.npaths, npoints)
+
         for index, constrain in enumerate(self.constraints):
-            constrain_temp = constrain['temperature'] / self.fact_temperature
+            constrain_temp = (constrain['temperature'] - 273.15) / self.fact_temperature
             constrain_time = constrain['time'] / self.fact_time
             i, j = np.where((time >= min(constrain_time)) & (time <= max(constrain_time)))
             shape = i.shape[0]
@@ -71,7 +99,7 @@ class MonteCarloPathGenerator(object):
             
         self.TTPaths = np.ndarray((self.npaths, npoints, 2))
         self.TTPaths[:, :, 0] = time * self.fact_time
-        self.TTPaths[:, :, 1] = temperature * self.fact_temperature
+        self.TTPaths[:, :, 1] = temperature * self.fact_temperature + 273.15
         return self.TTPaths
 
     def run(self, measured_lengths, measured_age, measured_age_error):
@@ -83,7 +111,7 @@ class MonteCarloPathGenerator(object):
 
         for path in self.TTPaths:
             time, temperature = path[:, 0], path[:, 1]
-            history = ThermalHistory(time, temperature + 273.15)
+            history = ThermalHistory(time, temperature)
             self.annealing_model.history = history
             self.annealing_model.calculate_age()
             self.goodness_of_fit_values.append(self.merit_function(measured_lengths, measured_age, measured_age_error))
