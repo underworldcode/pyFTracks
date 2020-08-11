@@ -173,7 +173,7 @@ class MonteCarloPathGenerator(object):
 
         if new:
             self.generate_paths()
-        fig, ax = plt.subplots()
+        fig, ax = plt.gcf(), plt.gca()
         ax.set_xlim(self.TTPaths[:, :, 0].max(), self.TTPaths[:, :, 0].min())
         ax.set_ylim(self.TTPaths[:, :, 1].max(), self.TTPaths[:, :, 1].min())
         
@@ -193,4 +193,6 @@ class MonteCarloPathGenerator(object):
         ax.add_collection(rectangles)
         
         ax.set_title('Time Temperature Paths')
+        ax.set_xlabel('Time in Myr')
+        ax.set_ylabel('Tempeature in Kelvins')
         return ax
