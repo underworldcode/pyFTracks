@@ -62,13 +62,12 @@ _seconds_in_megayears = 31556925974700
 
 class AnnealingModel():
 
-    def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False):
+    def __init__(self, kinetic_parameters: dict, use_projected_track: bool=False,
+                 use_Cf_irradiation: bool =False):
 
         self.use_projected_track = use_projected_track
         self.use_Cf_irradiation = use_Cf_irradiation
-        self._kinetic_parameter = None
-        self._kinetic_parameter_type = None
+        self._kinetic_parameters = kinetic_parameters
 
     @property
     def history(self):
@@ -79,21 +78,19 @@ class AnnealingModel():
         self._history = value
 
     @property
-    def kinetic_parameter(self):
-        return self._kinetic_parameter
+    def kinetic_parameters(self):
+        return self._kinetic_parameters
 
-    @kinetic_parameter.setter
-    def kinetic_parameter(self, value):
-        self._kinetic_parameter = value
+    @kinetic_parameters.setter
+    def kinetic_parameters(self, value):
+        self._kinetic_parameters = value
     
     @property
-    def kinetic_parameter_type(self):
-        return self._kinetic_parameter_type
-
-    @kinetic_parameter_type.setter
-    def kinetic_parameter_type(self, value):
-        self._kinetic_parameter_type = value
-
+    def rmr0(self):
+        kinetic_type = list(self.kinetic_parameters.keys())[0]
+        kinetic_value = self.kinetic_parameters[kinetic_type]
+        return self._kinetic_conversion[kinetic_type].__func__(kinetic_value)
+    
     def _sum_populations(self, track_l0=16.1, nbins=200):
         
         cdef double init_length = track_l0
@@ -282,10 +279,11 @@ class Ketcham1999(AnnealingModel):
                           "OH_PFU": convert_OH_pfu_to_rmr0,
                           "RMR0": lambda x: x}
 
-    def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False):
+    def __init__(self, kinetic_parameters: dict, use_projected_track: bool =False,
+                 use_Cf_irradiation: bool =False):
 
         super(Ketcham1999, self).__init__(
+                kinetic_parameters,
                 use_projected_track,
                 use_Cf_irradiation)
         
@@ -388,9 +386,6 @@ class Ketcham1999(AnnealingModel):
         self.first_node = first_node
         return self.reduced_lengths, self.first_node
 
-    @property
-    def rmr0(self):
-        return Ketcham1999._kinetic_conversion[self.kinetic_parameter_type].__func__(self.kinetic_parameter)
 
 
 
@@ -440,10 +435,11 @@ class Ketcham2007(AnnealingModel):
                           "CL_PFU": convert_Cl_pfu_to_rmr0,
                           "RMR0": lambda x: x}
 
-    def __init__(self, use_projected_track=False,
-                 use_Cf_irradiation=False):
+    def __init__(self, kinetic_parameters: bool, use_projected_track: bool =False,
+                 use_Cf_irradiation: bool=False):
 
         super(Ketcham2007, self).__init__(
+              kinetic_parameters,
               use_projected_track,
               use_Cf_irradiation)
 
@@ -518,8 +514,3 @@ class Ketcham2007(AnnealingModel):
                 equivTime = pow(1.0 / reduced_lengths[node] - 1.0, modKetch07.a)
                 equivTime = (equivTime - modKetch07.c0) / modKetch07.c1
                 equivTime = exp(equivTime * (tempCalc - modKetch07.c3) + modKetch07.c2)
-
-
-    @property
-    def rmr0(self):
-        return Ketcham2007._kinetic_conversion[self.kinetic_parameter_type].__func__(self.kinetic_parameter)
