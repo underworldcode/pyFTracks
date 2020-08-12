@@ -47,7 +47,7 @@ cdef calculate_reduced_stddev(double redLength, int doProject):
         return(0.4572 - 0.8815 * redLength + 0.4947 * redLength * redLength)
 
 
-cdef calculate_mean_reduced_length(double redLength, int usedCf):
+cdef calculate_mean_reduced_length_ketcham1999(double redLength, int usedCf):
     # Californium irradiation of apatite can be a useful technique for increasing the number
     # of confined tracks. It will however change the biasing of track detection.
     # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
@@ -56,6 +56,17 @@ cdef calculate_mean_reduced_length(double redLength, int usedCf):
         return 1.396 * redLength - 0.4017
     else:
         return -1.499 * redLength * redLength + 4.150 * redLength - 1.656
+
+
+cdef calculate_mean_reduced_length_ketcham2003(double redLength, int usedCf):
+    # Californium irradiation of apatite can be a useful technique for increasing the number
+    # of confined tracks. It will however change the biasing of track detection.
+    # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
+    # use the empirical function provided by Ketcham et al 2003.
+    if usedCf:
+        return -0.4720 + 1.4701 * redLength  
+    else:
+        return -1.2101 + 3.0864 * redLength - 0.8792 * redLength * redLength
 
 
 _seconds_in_megayears = 31556925974700
@@ -132,7 +143,7 @@ class AnnealingModel():
             # of confined tracks. It will however change the biasing of track detection.
             # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
             # use the empirical function provided by Ketcham et al 1999.
-            rmLen = calculate_mean_reduced_length(reduced_lengths[j], usedCf)
+            rmLen = calculate_mean_reduced_length_ketcham1999(reduced_lengths[j], usedCf)
             
             rStDev = calculate_reduced_stddev(rmLen, project)
             obsBias = correct_observational_bias(rmLen)
