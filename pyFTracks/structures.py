@@ -57,7 +57,7 @@ class Sample(DataFrame):
             'deposition_temperature', 'present_day_temperature', 'id',
             '_track_lengths', 'track_lengths']
             
-    def __init__(self, data=None, zeta=None, zeta_error=None, rhod=None, nd=None, name: str=None,
+    def __init__(self, data=None, central_age=None, pooled_age=None, zeta=None, zeta_error=None, rhod=None, nd=None, name: str=None,
                  elevation=None, depth=None, stratigraphic_age=None, stratigraphic_age_name:str=None,
                  description=None, deposition_temperature=None,
                  present_day_temperature=None, *args, **kwargs):
@@ -74,6 +74,8 @@ class Sample(DataFrame):
         self.zeta_error = zeta_error
         self.rhod = rhod
         self.nd = nd
+        self.central_age = central_age
+        self.pooled_age = pooled_age
         
        
         super(Sample, self).__init__(columns=["Ns", "Ni", "A"], data=data, *args, **kwargs)
@@ -92,13 +94,10 @@ class Sample(DataFrame):
             data, metadata = h5load(store)
         for val in self._metadata:
             try:
-                key = val.replace("_", " ")
-                setattr(self, val, metadata.pop(key))
+                setattr(self, val, metadata.pop(val))
             except:
                 pass
         super(Sample, self).__init__(data=data)
-        self.calculate_ratios()
-        self.calculate_ages()
         return self
 
     def calculate_ratios(self):
