@@ -5,6 +5,7 @@ import cython
 import numpy as np
 cimport numpy as np
 from libc.math cimport exp, pow, log
+from pyFTracks.structures import Sample
 
 _MIN_OBS_RCMOD = 0.55
 
@@ -254,6 +255,17 @@ class AnnealingModel():
     def generate_synthetic_lengths(self, ntl=100):
         tls = draw_from_distrib(self.pdf_axis, self.pdf, ntl)
         return tls
+
+    def generate_synthetic_sample(self, counts=30,  ntl=100):
+        tls = self.generate_synthetic_lengths(ntl)
+        Ns, Ni = self.generate_synthetic_counts(counts)
+        A = np.random.randint(10, 100, Ns.size)
+        data = {"Ns": Ns, "Ni": Ni, "A": A}
+        sample = Sample(data)
+        sample.track_lengths = tls
+        sample.pooled_age = self.ft_model_age
+        return sample
+
 
 
 class Ketcham1999(AnnealingModel):

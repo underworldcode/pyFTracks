@@ -81,17 +81,25 @@ class Viewer(object):
             self.annealing_model.history = self.history
             self.annealing_model.calculate_age()
             self.m2, = self.ax2.plot(self.annealing_model.pdf_axis, self.annealing_model.pdf, color="r")
-            age_label = self.annealing_model.ft_model_age
-            MTL_label = self.annealing_model.MTL
+            age_label = f"{self.annealing_model.ft_model_age:5.2f}"
+            MTL_label = f"{self.annealing_model.MTL:5.2f}"
         else:
             self.ax2.plot()
             age_label = 0.0
             MTL_label = 0.0
 
-        self.age_label = self.ax2.text(0.05, 0.95, "AFT age:{0:5.2f} Myr".format(age_label),
+        obs_age_label = ""
+        if self.sample is not None and self.sample.pooled_age:
+            obs_age_label = f"{self.sample.pooled_age:5.2f}"
+        
+        obs_MTL_label = ""
+        if self.sample.track_lengths is not None:
+            obs_MTL_label = f"{self.sample.track_lengths.mean():5.2f}"
+
+        self.age_label = self.ax2.text(0.05, 0.95, f"AFT age:{age_label} Myr (obs: {obs_age_label})",
                                        horizontalalignment='left', verticalalignment='center',
                                        transform=self.ax2.transAxes)
-        self.MTL_label = self.ax2.text(0.05, 0.90, "MTL:{0:5.2f} $\mu$m".format(MTL_label),
+        self.MTL_label = self.ax2.text(0.05, 0.90, f"MTL:{MTL_label} $\mu$m (obs: {obs_MTL_label} $\mu$m)",
                                        horizontalalignment='left', verticalalignment='center',
                                        transform=self.ax2.transAxes)
         self.ax2.set_title("Fission Track prediction")
@@ -99,7 +107,7 @@ class Viewer(object):
         self.ax3 = self.ax2.twinx()
         self.ax3.set_ylim(0., 40)
         
-        if self.sample is not None:
+        if self.sample is not None and self.sample.track_lengths is not None:
             self.ax3.hist(self.sample.track_lengths, bins=range(0, 21), density=False, alpha=0.5)
 
         self.axres = plt.axes([0.84, 0.05, 0.12, 0.02])

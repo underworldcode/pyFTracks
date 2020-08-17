@@ -97,6 +97,26 @@ class Sample(DataFrame):
                 setattr(self, val, metadata.pop(val))
             except:
                 pass
+
+        try:
+            self.calculate_ages()
+            self.calculate_ratios()
+        except:
+            pass
+
+
+        if not self.central_age:
+            try:
+                self.calculate_central_age()
+            except:
+                pass
+
+        if not self.pooled_age:
+            try:
+                self.calculate_pooled_age()
+            except:
+                pass
+
         super(Sample, self).__init__(data=data)
         return self
 
