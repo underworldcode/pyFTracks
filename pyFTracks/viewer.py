@@ -98,6 +98,9 @@ class Viewer(object):
         self.ax2.set_ylim(0., 0.05)
         self.ax3 = self.ax2.twinx()
         self.ax3.set_ylim(0., 40)
+        
+        if self.sample is not None:
+            self.ax3.hist(self.sample.track_lengths, bins=range(0, 21), density=False, alpha=0.5)
 
         self.axres = plt.axes([0.84, 0.05, 0.12, 0.02])
         self.bres = Button(self.axres, 'Reset')
@@ -116,7 +119,7 @@ class Viewer(object):
         self.l.set_ydata(self.temperature)
         self.l.set_xdata(self.time)
 
-        if self.history:
+        if self.history and self.annealing_model:
             self.m2.set_ydata(self.annealing_model.pdf)
             age_label = self.annealing_model.ft_model_age
             MTL_label = self.annealing_model.MTL
@@ -132,7 +135,8 @@ class Viewer(object):
     def reset(self, event):
         self.temperature = np.copy(self.original_temperature)
         self.time = np.copy(self.original_time)
-        self.annealing_model.pdf *= 0.
+        if self.annealing_model:
+            self.annealing_model.pdf *= 0.
         self.refresh_data()
         self.update_plot()
 
@@ -195,6 +199,9 @@ class Viewer(object):
         return d, ind
 
     def refresh_data(self):
+        if not self.annealing_model:
+            return
+
         self.annealing_model.history.input_time = np.copy(self.time)
         self.annealing_model.history.input_temperature = np.copy(self.temperature)
         if self.time.shape[0] > 1:
@@ -206,4 +213,8 @@ class Viewer(object):
             return
         self.time = np.delete(self.time, self.pind)
         self.temperature = np.delete(self.temperature, self.pind)
+
+    def show(self):
+        self.fig.show()
+        return self
 
