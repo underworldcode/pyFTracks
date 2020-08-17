@@ -129,15 +129,23 @@ class Viewer(object):
 
         if self.history and self.annealing_model:
             self.m2.set_ydata(self.annealing_model.pdf)
-            age_label = self.annealing_model.ft_model_age
-            MTL_label = self.annealing_model.MTL
+            age_label = f"{self.annealing_model.ft_model_age:5.2f}"
+            MTL_label = f"{self.annealing_model.MTL:5.2f}"
         else:
             self.ax2.plot()
             age_label = 0.0
             MTL_label = 0.0
 
-        self.age_label.set_text("AFT age:{0:5.2f} Myr".format(age_label))
-        self.MTL_label.set_text("MTL:{0:5.2f} $\mu$m".format(MTL_label))
+        obs_age_label = ""
+        if self.sample is not None and self.sample.pooled_age:
+            obs_age_label = f"{self.sample.pooled_age:5.2f}"
+        
+        obs_MTL_label = ""
+        if self.sample.track_lengths is not None:
+            obs_MTL_label = f"{self.sample.track_lengths.mean():5.2f}"
+
+        self.age_label.set_text(f"AFT age:{age_label} Myr (obs: {obs_age_label})")
+        self.MTL_label.set_text(f"MTL:{MTL_label} $\mu$m (obs: {obs_MTL_label} $\mu$m)")
         self.fig.canvas.draw_idle()
 
     def reset(self, event):
