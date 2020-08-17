@@ -23,7 +23,7 @@ projected_coefs = {"ETCH_PIT_LENGTH": {"m": 0.205, "b": 16.10},
 
 class Grain(Series):
 
-    _metadata = ['_track_length_distribution', 'track_length_distribution']
+    _metadata = ['_track_lengths', 'track_lengths']
 
     def __init__(self, *args, **kwargs):
         Series.__init__(self, *args, **kwargs)
@@ -53,15 +53,31 @@ class Sample(DataFrame):
             'central_age_se', 'central_age_se',
             'rhod', 'nd', 'depth', 'elevation',
             'stratigraphic_age', 'stratigraphic_age_name',
-            'unit_area_graticule',
+            'unit_area_graticule', 'description',
             'deposition_temperature', 'present_day_temperature', 'id',
-            '_track_length_distribution', 'track_length_distribution']
+            '_track_lengths', 'track_lengths']
             
-    def __init__(self, *args, **kwargs):
-       
-        super(Sample, self).__init__(columns=["Ns", "Ni", "A"], *args, **kwargs)
+    def __init__(self, data=None, zeta=None, zeta_error=None, rhod=None, nd=None, name: str=None,
+                 elevation=None, depth=None, stratigraphic_age=None, stratigraphic_age_name:str=None,
+                 description=None, deposition_temperature=None,
+                 present_day_temperature=None, *args, **kwargs):
 
-        self._track_length_distribution = pd.DataFrame(columns=["bins", "lengths"])
+        self.name = name
+        self.depth = depth
+        self.elevation = elevation
+        self.stratigraphic_age = stratigraphic_age
+        self.stratigraphic_age_name = stratigraphic_age_name
+        self.deposition_temperature = deposition_temperature
+        self.present_day_temperature = present_day_temperature
+        self.description = description
+        self.zeta = zeta
+        self.zeta_error = zeta_error
+        self.rhod = rhod
+        self.nd = nd
+        
+       
+        super(Sample, self).__init__(columns=["Ns", "Ni", "A"], data=data, *args, **kwargs)
+        self._track_lengths = None
 
     @property
     def _constructor(self):
@@ -80,7 +96,7 @@ class Sample(DataFrame):
                 setattr(self, val, metadata.pop(key))
             except:
                 pass
-        self.__init__(data=data)
+        super(Sample, self).__init__(data=data)
         self.calculate_ratios()
         self.calculate_ages()
         return self
@@ -130,12 +146,12 @@ class Sample(DataFrame):
                 "Ages Errors": list(self["Ages Errors"])}
 
     @property
-    def track_length_distribution(self):
-        return self._track_length_distribution
+    def track_lengths(self):
+        return self._track_lengths
 
-    @track_length_distribution.setter
-    def track_length_distribution(self, values):
-        self._track_length_distribution = values
+    @track_lengths.setter
+    def track_lengths(self, values):
+        self._track_lengths = values
 
     def calculate_pooled_age(self):
         data = calculate_pooled_age(
@@ -169,23 +185,28 @@ class Sample(DataFrame):
         For integration with Jupyter notebook.
         """
         params = OrderedDict()
-        #params["Name"] = self.name
-        #params["Depth"] = self.depth
-        #params["Elevation"] = self.elevation
-        #params["Stratigraphic Age Range Upper/Lower"] = self.stratigraphic_age
-        #params["Stratigraphic Age Name"] = self.stratigraphic_age_name
-        #params["Deposition Temperature"] = self.deposition_temperature
-        #params["Present Day Temperature"] = self.present_day_temperature
+        params["Name"] = self.name
+        params["Description"] = self.description
+        params["Depth"] = self.depth
+        params["Elevation"] = self.elevation
+        params["Stratigraphic Age Range Upper/Lower"] = self.stratigraphic_age
+        params["Stratigraphic Age Name"] = self.stratigraphic_age_name
+        params["Deposition Temperature"] = self.deposition_temperature
+        params["Present Day Temperature"] = self.present_day_temperature
         params["Total Ns"] = sum(self.Ns)
         params["Total Ni"] = sum(self.Ni)
+        params["rhoD"] = self.rhod
+        params["nd"] = self.nd
+        params["Zeta"] = f"{self.zeta} ({self.zeta_error})"
     
+        #html = "<div style='margin-bottom:0.5cm;margin.top:0.5cm;margin-left:4cm;font-size:large;font-weight:bold'>Metadata</div>"
         html = ""
 
         for key, val in params.items():
             if not val: val = ""
             html += "<div>{0}: {1}</div>".format(key, val)
 
-        return DataFrame._repr_html_(self) + html
+        return html + DataFrame._repr_html_(self)
 
     def apply_forward_model(self, fwd_model, name):
         self.kinetic_parameter_type = "ETCH_PIT_LENGTH"
@@ -199,7 +220,21 @@ class Sample(DataFrame):
         self[name] = df["ft_age"]
 
     def save(self, filename):
-        h5store(filename, *self.data_info)
+        data = pd.DataFrame()
+        data["Ns"] = self.Ns
+        data["Ni"] = self.Ni
+        data["A"] = self.A
+        metadata = {}
+        for val in self._metadata:
+            if not val.startswith("_"):
+                try:
+                    metadata[val] = getattr(self, val)
+                except:
+                    pass
+        h5store(filename, data, **metadata)
+    
+
+    save_to_hdf = save
 
     def radialplot(self, transform="logarithmic"):
         return radialplot(Ns=self.Ns, Ni=self.Ni, zeta=self.zeta, zeta_err=self.zeta_error,
