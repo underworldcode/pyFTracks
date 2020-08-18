@@ -76,7 +76,10 @@ class Sample(DataFrame):
         self.nd = nd
         self.central_age = central_age
         self.pooled_age = pooled_age
-        
+
+
+        if isinstance(data, DataFrame):
+            data = data.to_dict() 
        
         super(Sample, self).__init__(columns=["Ns", "Ni", "A"], data=data, *args, **kwargs)
         self._track_lengths = None
@@ -121,6 +124,11 @@ class Sample(DataFrame):
         return self
 
     def calculate_ratios(self):
+        if not hasattr(self, "Ns"):
+            raise ValueError("Cannot find Ns counts")
+        if not hasattr(self, "Ni"):
+            raise ValueError("Cannot find Ns counts")
+
         self["Ns/Ni"] = self.Ns / self.Ni
         if not hasattr(self, "unit_area_graticule"):
             self.unit_area_graticule = 1.0
@@ -140,21 +148,21 @@ class Sample(DataFrame):
         self._calculate_statistics()
     
     def calculate_l0_from_Dpars(self, projected=True):
+        if not hasattr(self, "Dpars"):
+            raise ValueError("Cannot find Dpars column")
         if projected:
             m = projected_coefs["ETCH_PIT_LENGTH"]["m"]
             b = projected_coefs["ETCH_PIT_LENGTH"]["b"]
         else:
             m = unprojected_coefs["ETCH_PIT_LENGTH"]["m"]
             b = unprojected_coefs["ETCH_PIT_LENGTH"]["b"]
-        if not hasattr(self, "Dpars"):
-            raise ValueError("Cannot find Dpars column")
         self["l0"] = m * self.Dpars + b
 
     def calculate_ages(self):
-        required = ["zeta", "zeta_error", "rhod", "nd"]
+        required = ["Ns", "Ni", "zeta", "zeta_error", "rhod", "nd"]
         for arg in required:
-            if not hasattr(self, arg):
-                raise ValueError("""Missing argument {0}""".format(arg))
+            if arg is None:
+                raise ValueError("""Cannot find {0}""".format(arg))
 
         data =  calculate_ages(
                 self.Ns, self.Ni, self.zeta, 
@@ -173,6 +181,10 @@ class Sample(DataFrame):
         self._track_lengths = values
 
     def calculate_pooled_age(self):
+        required = ["Ns", "Ni", "zeta", "zeta_error", "rhod", "nd"]
+        for arg in required:
+            if arg is None:
+                raise ValueError("""Cannot find {0}""".format(arg))
         data = calculate_pooled_age(
                 self.Ns, self.Ni, self.zeta,
                 self.zeta_error, self.rhod, self.nd)
@@ -182,6 +194,10 @@ class Sample(DataFrame):
                 "se": self.pooled_age_se}
 
     def calculate_central_age(self):
+        required = ["Ns", "Ni", "zeta", "zeta_error", "rhod", "nd"]
+        for arg in required:
+            if arg is None:
+                raise ValueError("""Cannot find {0}""".format(arg))
         data = calculate_central_age(
                 self.Ns, self.Ni, self.zeta,
                 self.zeta_error, self.rhod, self.nd
