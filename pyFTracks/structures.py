@@ -86,7 +86,18 @@ class Sample(DataFrame):
 
     @property
     def _constructor(self):
-        return DataFrame
+        """This is the key to letting Pandas know how to keep
+        derivative `SomeData` the same type as yours.  It should
+        be enough to return the name of the Class.  However, in
+        some cases, `__finalize__` is not called and `my_attr` is
+        not carried over.  We can fix that by constructing a callable
+        that makes sure to call `__finlaize__` every time.
+        
+        see: https://stackoverflow.com/questions/47466255/subclassing-a-pandas-dataframe-updates
+        """
+        def _c(*args, **kwargs):
+            return Sample(*args, **kwargs).__finalize__(self)
+        return _c
 
     @property
     def _constructor_sliced(self):
