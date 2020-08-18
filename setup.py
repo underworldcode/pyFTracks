@@ -1,11 +1,7 @@
 from setuptools import setup, Extension
 from os import path
+import codecs
 
-MAJOR = 0
-MINOR = 2
-MICRO = 8
-ISRELEASED = False
-VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 
 class get_numpy_include(object):
     """Returns Numpy's include path with lazy import"""
@@ -13,6 +9,19 @@ class get_numpy_include(object):
     def __str__(self):
         import numpy
         return numpy.get_include()
+
+def read(rel_path):
+    here = path.abspath(path.dirname(__file__))
+    with codecs.open(path.join(here, rel_path), 'r') as fp:
+        return fp.read()
+
+def get_version(rel_path):
+    for line in read(rel_path).splitlines():
+        if line.startswith('__version__'):
+            delim = '"' if '"' in line else "'"
+            return line.split(delim)[1]
+    else:
+        raise RuntimeError("Unable to find version string.")
 
 
 # Get the long description from the README file
@@ -33,9 +42,9 @@ setup(
         'numpy',
         'cython'
         ],
-    version=VERSION,
+    version=get_version("pyFTracks/__init__.py"),
     description='Fission Track Modelling and Analysis with Python',
-    ext_modules=extensions,
+    ext_modules=get_version("pyFTracks/__init__.py"),
     include_package_data=True,
     include_dirs=[get_numpy_include()],
     long_description=long_description,

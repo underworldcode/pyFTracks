@@ -6,3 +6,6 @@ from .age_calculations import calculate_pooled_age as pooled_age
 from .age_calculations import calculate_ages as single_grain_ages
 from .age_calculations import chi_square as chi2_test
 from .thermal_history import ThermalHistory
+
+
+__version__= "0.2.9"
