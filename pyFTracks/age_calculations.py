@@ -26,6 +26,11 @@ def calculate_central_age(Ns, Ni, zeta, seZeta, rhod, Nd, sigma=0.15):
     Ns = np.array(Ns)
     Ni = np.array(Ni)
 
+    # We just replace 0 counts with a low value, the age will be rounded to 
+    # 2 decimals. That should take care of the zero count issue.
+    Ns = np.where(Ns == 0, 1e-10, Ns) # Do this to account for 0 track counts
+    Ni = np.where(Ni == 0, 1e-10, Ni) # Do this to account for 0 track counts
+
     # Calculate mj
     LAMBDA = 1.55125e-4
     G = 0.5
@@ -42,10 +47,15 @@ def calculate_central_age(Ns, Ni, zeta, seZeta, rhod, Nd, sigma=0.15):
     t = (1.0 / LAMBDA) * np.log( 1.0 + G * LAMBDA * zeta * rhod * (theta) / (1.0 - theta))
     se = np.sqrt(1 / (theta**2 * (1.0 - theta)**2 * np.sum(w)) + 1.0 / Nd + (seZeta / zeta)**2) * t
 
-    return {"Central": t, "se": se, "sigma": sigma}
+    return {"Central": np.round(t, 2), "se": np.round(se, 2), "sigma": np.round(sigma, 2)}
 
 def calculate_pooled_age(Ns, Ni, zeta, seZeta, rhod, Nd):
 
+    # We just replace 0 counts with a low value, the age will be rounded to 
+    # 2 decimals. That should take care of the zero count issue.
+    Ns = np.where(Ns == 0, 1e-10, Ns) # Do this to account for 0 track counts
+    Ni = np.where(Ni == 0, 1e-10, Ni) # Do this to account for 0 track counts
+    
     Ns = np.sum(Ns)
     Ni = np.sum(Ni)
 
@@ -54,10 +64,15 @@ def calculate_pooled_age(Ns, Ni, zeta, seZeta, rhod, Nd):
     t = 1.0 / LAMBDA * np.log(1.0 + G * LAMBDA * zeta * rhod * Ns / Ni)
     se = t * (1.0 / Ns + 1.0 / Ni + 1 / Nd + seZeta**2)**0.5
 
-    return {"Pooled Age": t, "se": se}
+    return {"Pooled Age": np.round(t, 2), "se": np.round(se, 2)}
 
 def calculate_ages(Ns, Ni, zeta, seZeta, rhod, Nd):
 
+    # We just replace 0 counts with a low value, the age will be rounded to 
+    # 2 decimals. That should take care of the zero count issue.
+    Ns = np.where(Ns == 0, 1e-10, Ns) # Do this to account for 0 track counts
+    Ni = np.where(Ni == 0, 1e-10, Ni) # Do this to account for 0 track counts
+    
     Ns = np.array(Ns)
     Ni = np.array(Ni)
     Nd = np.array(Nd)
@@ -76,5 +91,5 @@ def calculate_ages(Ns, Ni, zeta, seZeta, rhod, Nd):
     se = (true_divide(Ns) + true_divide(Ni) + 1.0 / Nd + seZeta**2)**0.5
     se *= t
 
-    return {"Age(s)": t, "se(s)": se}
+    return {"Age(s)": np.round(t, 2), "se(s)": np.round(se, 2)}
 
