@@ -318,8 +318,9 @@ class Ketcham1999(AnnealingModel):
         cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
         cdef int numTTnodes = time.shape[0]
         cdef double[::1] reduced_lengths = np.zeros(time.shape[0] - 1)
-        cdef double crmr0 = self.rmr0
         cdef int first_node = 0
+        cdef double crmr0 = self.rmr0
+
 
         cdef int node, nodeB
         cdef double equivTime
@@ -379,27 +380,7 @@ class Ketcham1999(AnnealingModel):
                 if node > 0:
                     node += 1
                 first_node = node
-
-                for nodeB in range(first_node, numTTnodes - 1):
-                    if reduced_lengths[nodeB] < crmr0:
-                        reduced_lengths[nodeB] = 0.0
-                        first_node = nodeB
-                    else:
-                        # This is equation 8 from Ketcham et al, 1999
-                        # Apatite with the composition of B2 are very rare, B2 is
-                        # significantly more resistant than the most common variety, near
-                        # end member fluorapatite.
-                        # Ketcham 1999 showed that the reduced length of any apatite could
-                        # be related to the length of an apatite that is relatively more resistant
-                        # (hence use of B2)
-                        reduced_lengths[nodeB] = pow((reduced_lengths[nodeB] - crmr0) / (1.0 - crmr0), k)
-                        if reduced_lengths[nodeB] < totAnnealLen:
-                            reduced_lengths[nodeB] = 0.
-                            first_node = nodeB
-        
-                self.reduced_lengths = np.array(reduced_lengths)
-                self.first_node = first_node
-                return self.reduced_lengths, self.first_node
+                break
 
             # Update tiq for this time step
             if reduced_lengths[node] < 0.999:
@@ -407,10 +388,44 @@ class Ketcham1999(AnnealingModel):
                 equivTime = pow((1.0 - pow(reduced_lengths[node], modKetch99.b)) / modKetch99.b, modKetch99.a)
                 equivTime = ((equivTime - 1.0) / modKetch99.a - modKetch99.c0) / modKetch99.c1
                 equivTime = exp(equivTime * (tempCalc - modKetch99.c3) + modKetch99.c2)
-        
+
+        reduced_lengths, first_node = self.convert_reduced_lengths(reduced_lengths, first_node)
         self.reduced_lengths = np.array(reduced_lengths)
         self.first_node = first_node
         return self.reduced_lengths, self.first_node
+
+    def convert_reduced_lengths(self, double[::1] reduced_lengths, int first_node):
+        """ Apatite with the composition of B2 are very rare, B2 is
+            significantly more resistant than the most common variety, near
+            end member fluorapatite.
+            Ketcham 1999 showed that the reduced length of any apatite could
+            be related to the length of an apatite that is relatively more resistant
+            (hence use of B2)
+        """
+        cdef int node
+        cdef double crmr0 = self.rmr0
+        cdef double k
+        cdef double MIN_OBS_RCMOD = _MIN_OBS_RCMOD
+        cdef double totAnnealLen, equivTotAnnLen
+        cdef int numTTnodes = self.history.time.shape[0]
+ 
+        k = 1 - crmr0
+
+        totAnnealLen = MIN_OBS_RCMOD
+        equivTotAnnLen =  pow(totAnnealLen, 1.0 / k) * (1.0 - crmr0) + crmr0
+        
+        for node in range(first_node, numTTnodes - 1):
+            if reduced_lengths[node] < crmr0:
+                reduced_lengths[node] = 0.0
+                first_node = node
+            else:
+                reduced_lengths[node] = pow((reduced_lengths[node] - crmr0) / (1.0 - crmr0), k)
+                if reduced_lengths[node] < equivTotAnnLen:
+                    reduced_lengths[node] = 0.
+                    first_node = node
+
+        return reduced_lengths, first_node
+
 
 
 class Generic(AnnealingModel):
@@ -424,6 +439,46 @@ class Generic(AnnealingModel):
         super(Generic, self).__init__(
                 use_projected_track,
                 use_Cf_irradiation)
+    
+    def calculate_reduced_length(self, double dt, double temperature):
+        """ Calculate the modeled reduced length (length normalized by
+            initial length of a fission track parallel to the c-axis (Donelick 1999))
+            after an isothermal annealing episode at a temperature T (Kelvin) of
+            duration t (seconds)
+        """
+        cdef double x1, x2, x3
+        cdef double c0 = <double> self.model_parameters["c0"]
+        cdef double c1 = <double> self.model_parameters["c1"]
+        cdef double c2 = <double> self.model_parameters["c2"]
+        cdef double c3 = <double> self.model_parameters["c3"]
+        cdef double a = <double> self.model_parameters["a"]
+        cdef double b = <double> self.model_parameters["b"]
+        cdef double reduced_length
+        
+        x1 = (log(dt) - c2) / (temperature - c3)
+        x2 = 1.0 + a * (c0 + c1 * x1)
+
+        if x2 < 0:
+            return 0.
+        else:
+            reduced_length = pow(x2, 1.0 / a)
+            if x3 < 0:
+                return 0.
+            else:
+                x3 = 1.0 - b * reduced_length
+                return pow(x3, 1.0 / b)
+
+    def calculate_equivalent_time(self, double reduced_length, double temperature):
+        cdef double c0 = <double> self.model_parameters["c0"]
+        cdef double c1 = <double> self.model_parameters["c1"]
+        cdef double c2 = <double> self.model_parameters["c2"]
+        cdef double c3 = <double> self.model_parameters["c3"]
+        cdef double a = <double> self.model_parameters["a"]
+        cdef double b = <double> self.model_parameters["b"]
+        cdef double equivTime
+        equivTime = pow((1.0 - pow(reduced_length, b)) / b, a)
+        equivTime = ((equivTime - 1.0) / a - c0) / c1
+        return exp(equivTime * (temperature - c3) + c2)
 
     def annealing_model(self):
 
@@ -435,42 +490,22 @@ class Generic(AnnealingModel):
         cdef double[::1] reduced_lengths = np.zeros(time.shape[0] - 1)
         cdef int first_node = 0
 
-        cdef int node, nodeB
+        cdef int node
         cdef double equivTime
-        cdef double timeInt, x1, x2, x3
-        cdef double k
-        cdef double calc
+        cdef double timeInt
         cdef double tempCalc
-
-        cdef annealModel model = annealModel(
-            c0=self.model_parameters["c0"],
-            c1=self.model_parameters["c1"],
-            c2=self.model_parameters["c2"],
-            c3=self.model_parameters["c3"],
-            a=self.model_parameters["a"],
-            b=self.model_parameters["b"])
 
         equivTime = 0.
         tempCalc = 1.0 / ((temperature[numTTnodes - 2] +  temperature[numTTnodes - 1]) / 2.0)
 
         for node in range(numTTnodes - 2, -1, -1):
-            # We calculate the modeled reduced length (length normalized by
-            # initial length of a fission track parallel to the c-axis (Donelick 1999))
-            # after an isothermal annealing episode at a temperature T (Kelvin) of
-            # duration t (seconds)
             timeInt = time[node] - time[node + 1] + equivTime
-            x1 = (log(timeInt) - model.c2) / (tempCalc - model.c3)
-            x2 = 1.0 + model.a * (model.c0 + model.c1 * x1)
+            reduced_lengths[node] = self.calculate_reduced_length(timeInt, tempCalc)
 
-            if x2 < 0:
-                reduced_lengths[node] = 0.0
-            else:
-                reduced_lengths[node] = pow(x2, 1.0 / model.a)
-                if x3 < 0:
-                    reduced_lengths[node] = 0.
-                else:
-                    x3 = 1.0 - model.b * reduced_lengths[node]
-                    reduced_lengths[node] = pow(x3, 1.0 / model.b)
+            # Update tiq for this time step
+            if reduced_lengths[node] < 0.999:
+                tempCalc = 1.0 / ((temperature[node-1] + temperature[node]) / 2.0)
+                equivTime = self.calculate_equivalent_time(reduced_lengths[node], tempCalc)
 
             # Check to see if we've reached the end of the length distribution
             # If so, we then do the kinetic conversion.
@@ -478,16 +513,11 @@ class Generic(AnnealingModel):
                 if node > 0:
                     node += 1
                 first_node = node
-                self.reduced_lengths = np.array(reduced_lengths)
-                self.first_node = first_node
-                return self.reduced_lengths, self.first_node
+                break
 
-            # Update tiq for this time step
-            if reduced_lengths[node] < 0.999:
-                tempCalc = 1.0 / ((temperature[node-1] + temperature[node]) / 2.0)
-                equivTime = pow((1.0 - pow(reduced_lengths[node], model.b)) / model.b, model.a)
-                equivTime = ((equivTime - 1.0) / model.a - model.c0) / model.c1
-                equivTime = exp(equivTime * (tempCalc - model.c3) + model.c2)
+        self.reduced_lengths = np.array(reduced_lengths)
+        self.first_node = first_node
+        return self.reduced_lengths, self.first_node
 
 
 class Ketcham2007(AnnealingModel):
