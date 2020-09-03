@@ -74,12 +74,11 @@ _seconds_in_megayears = 31556925974700
 
 class AnnealingModel():
 
-    def __init__(self, kinetic_parameters: dict, use_projected_track: bool=False,
+    def __init__(self, use_projected_track: bool=False,
                  use_Cf_irradiation: bool =False):
 
         self.use_projected_track = use_projected_track
         self.use_Cf_irradiation = use_Cf_irradiation
-        self._kinetic_parameters = kinetic_parameters
 
     @property
     def history(self):
@@ -89,20 +88,6 @@ class AnnealingModel():
     def history(self, value):
         self._history = value
 
-    @property
-    def kinetic_parameters(self):
-        return self._kinetic_parameters
-
-    @kinetic_parameters.setter
-    def kinetic_parameters(self, value):
-        self._kinetic_parameters = value
-    
-    @property
-    def rmr0(self):
-        kinetic_type = list(self.kinetic_parameters.keys())[0]
-        kinetic_value = self.kinetic_parameters[kinetic_type]
-        return self._kinetic_conversion[kinetic_type].__func__(kinetic_value)
-    
     def _sum_populations(self, track_l0=16.1, nbins=200):
         
         cdef double init_length = track_l0
@@ -305,10 +290,25 @@ class Ketcham1999(AnnealingModel):
     def __init__(self, kinetic_parameters: dict, use_projected_track: bool =False,
                  use_Cf_irradiation: bool =False):
 
+        self._kinetic_parameters = kinetic_parameters
+       
         super(Ketcham1999, self).__init__(
-                kinetic_parameters,
                 use_projected_track,
                 use_Cf_irradiation)
+    
+    @property
+    def kinetic_parameters(self):
+        return self._kinetic_parameters
+
+    @kinetic_parameters.setter
+    def kinetic_parameters(self, value):
+        self._kinetic_parameters = value
+    
+    @property
+    def rmr0(self):
+        kinetic_type = list(self.kinetic_parameters.keys())[0]
+        kinetic_value = self.kinetic_parameters[kinetic_type]
+        return self._kinetic_conversion[kinetic_type].__func__(kinetic_value)
         
     def annealing_model(self):
 
@@ -359,13 +359,16 @@ class Ketcham1999(AnnealingModel):
             timeInt = time[node] - time[node + 1] + equivTime
             x1 = (log(timeInt) - modKetch99.c2) / (tempCalc - modKetch99.c3)
             x2 = 1.0 + modKetch99.a * (modKetch99.c0 + modKetch99.c1 * x1)
-            reduced_lengths[node] = pow(x2, 1.0 / modKetch99.a)
-            x3 = 1.0 - modKetch99.b * reduced_lengths[node]
 
-            if x3 < 0:
+            if x2 < 0:
                 reduced_lengths[node] = 0.0
             else:
-                reduced_lengths[node] = pow(x3, 1.0 / modKetch99.b)
+                reduced_lengths[node] = pow(x2, 1.0 / modKetch99.a)
+                if x3 < 0:
+                    reduced_lengths[node] = 0.
+                else:
+                    x3 = 1.0 - modKetch99.b * reduced_lengths[node]
+                    reduced_lengths[node] = pow(x3, 1.0 / modKetch99.b)
 
             if reduced_lengths[node] < equivTotAnnLen:
                 reduced_lengths[node] = 0.
@@ -410,6 +413,81 @@ class Ketcham1999(AnnealingModel):
         return self.reduced_lengths, self.first_node
 
 
+class Generic(AnnealingModel):
+
+
+    def __init__(self, model_parameters: dict, use_projected_track: bool =False,
+                 use_Cf_irradiation: bool =False):
+
+        self.model_parameters = model_parameters
+
+        super(Generic, self).__init__(
+                use_projected_track,
+                use_Cf_irradiation)
+
+    def annealing_model(self):
+
+        # Must be in seconds (do conversion)
+        cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)
+        # Must be in Kelvin
+        cdef double[::1] temperature = np.ascontiguousarray(self.history.temperature)
+        cdef int numTTnodes = time.shape[0]
+        cdef double[::1] reduced_lengths = np.zeros(time.shape[0] - 1)
+        cdef int first_node = 0
+
+        cdef int node, nodeB
+        cdef double equivTime
+        cdef double timeInt, x1, x2, x3
+        cdef double k
+        cdef double calc
+        cdef double tempCalc
+
+        cdef annealModel model = annealModel(
+            c0=self.model_parameters["c0"],
+            c1=self.model_parameters["c1"],
+            c2=self.model_parameters["c2"],
+            c3=self.model_parameters["c3"],
+            a=self.model_parameters["a"],
+            b=self.model_parameters["b"])
+
+        equivTime = 0.
+        tempCalc = 1.0 / ((temperature[numTTnodes - 2] +  temperature[numTTnodes - 1]) / 2.0)
+
+        for node in range(numTTnodes - 2, -1, -1):
+            # We calculate the modeled reduced length (length normalized by
+            # initial length of a fission track parallel to the c-axis (Donelick 1999))
+            # after an isothermal annealing episode at a temperature T (Kelvin) of
+            # duration t (seconds)
+            timeInt = time[node] - time[node + 1] + equivTime
+            x1 = (log(timeInt) - model.c2) / (tempCalc - model.c3)
+            x2 = 1.0 + model.a * (model.c0 + model.c1 * x1)
+
+            if x2 < 0:
+                reduced_lengths[node] = 0.0
+            else:
+                reduced_lengths[node] = pow(x2, 1.0 / model.a)
+                if x3 < 0:
+                    reduced_lengths[node] = 0.
+                else:
+                    x3 = 1.0 - model.b * reduced_lengths[node]
+                    reduced_lengths[node] = pow(x3, 1.0 / model.b)
+
+            # Check to see if we've reached the end of the length distribution
+            # If so, we then do the kinetic conversion.
+            if reduced_lengths[node] == 0.0 or node == 0:
+                if node > 0:
+                    node += 1
+                first_node = node
+                self.reduced_lengths = np.array(reduced_lengths)
+                self.first_node = first_node
+                return self.reduced_lengths, self.first_node
+
+            # Update tiq for this time step
+            if reduced_lengths[node] < 0.999:
+                tempCalc = 1.0 / ((temperature[node-1] + temperature[node]) / 2.0)
+                equivTime = pow((1.0 - pow(reduced_lengths[node], model.b)) / model.b, model.a)
+                equivTime = ((equivTime - 1.0) / model.a - model.c0) / model.c1
+                equivTime = exp(equivTime * (tempCalc - model.c3) + model.c2)
 
 
 class Ketcham2007(AnnealingModel):
@@ -460,11 +538,26 @@ class Ketcham2007(AnnealingModel):
 
     def __init__(self, kinetic_parameters: bool, use_projected_track: bool =False,
                  use_Cf_irradiation: bool=False):
+        
+        self._kinetic_parameters = kinetic_parameters
 
         super(Ketcham2007, self).__init__(
-              kinetic_parameters,
               use_projected_track,
               use_Cf_irradiation)
+    
+    @property
+    def kinetic_parameters(self):
+        return self._kinetic_parameters
+
+    @kinetic_parameters.setter
+    def kinetic_parameters(self, value):
+        self._kinetic_parameters = value
+    
+    @property
+    def rmr0(self):
+        kinetic_type = list(self.kinetic_parameters.keys())[0]
+        kinetic_value = self.kinetic_parameters[kinetic_type]
+        return self._kinetic_conversion[kinetic_type].__func__(kinetic_value)
 
     def annealing_model(self):
         cdef double[::1] time = np.ascontiguousarray(self.history.time * _seconds_in_megayears)

@@ -1,4 +1,4 @@
-from .annealing import Ketcham1999, Ketcham2007
+from .annealing import Ketcham1999, Ketcham2007, Generic
 from .structures import Grain, Sample
 from .viewer import Viewer
 from .age_calculations import calculate_central_age as central_age
