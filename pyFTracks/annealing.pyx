@@ -7,7 +7,7 @@ cimport numpy as np
 from libc.math cimport exp, pow, log
 from pyFTracks.structures import Sample
 
-_MIN_OBS_RCMOD = 0.55
+_MIN_OBS_RCMOD = 0.13
 
 
 cdef struct annealModel:
@@ -324,7 +324,6 @@ class Ketcham1999(AnnealingModel):
         cdef int node, nodeB
         cdef double equivTime
         cdef double timeInt, x1, x2, x3
-        cdef double totAnnealLen
         cdef double equivTotAnnLen
         cdef double k
         cdef double calc
@@ -345,8 +344,7 @@ class Ketcham1999(AnnealingModel):
 
         k = 1 - crmr0
 
-        totAnnealLen = MIN_OBS_RCMOD
-        equivTotAnnLen =  pow(totAnnealLen, 1.0 / k) * (1.0 - crmr0) + crmr0
+        equivTotAnnLen =  pow(MIN_OBS_RCMOD, 1.0 / k) * (1.0 - crmr0) + crmr0
 
         equivTime = 0.
         tempCalc = log(1.0 / ((temperature[numTTnodes - 2] +  temperature[numTTnodes - 1]) / 2.0))
@@ -359,13 +357,16 @@ class Ketcham1999(AnnealingModel):
             timeInt = time[node] - time[node + 1] + equivTime
             x1 = (log(timeInt) - modKetch99.c2) / (tempCalc - modKetch99.c3)
             x2 = 1.0 + modKetch99.a * (modKetch99.c0 + modKetch99.c1 * x1)
-            reduced_lengths[node] = pow(x2, 1.0 / modKetch99.a)
-            x3 = 1.0 - modKetch99.b * reduced_lengths[node]
 
-            if x3 < 0:
-                reduced_lengths[node] = 0.0
+            if x2 <= 0:
+                reduced_lengths[node] = 0.
             else:
-                reduced_lengths[node] = pow(x3, 1.0 / modKetch99.b)
+                reduced_lengths[node] = pow(x2, 1.0 / modKetch99.a)
+                x3 = 1.0 - modKetch99.b * reduced_lengths[node]
+                if x3 <= 0:
+                    reduced_lengths[node] = 0.0
+                else:
+                    reduced_lengths[node] = pow(x3, 1.0 / modKetch99.b)
 
             if reduced_lengths[node] < equivTotAnnLen:
                 reduced_lengths[node] = 0.
@@ -390,13 +391,7 @@ class Ketcham1999(AnnealingModel):
                         # be related to the length of an apatite that is relatively more resistant
                         # (hence use of B2)
                         reduced_lengths[nodeB] = pow((reduced_lengths[nodeB] - crmr0) / (1.0 - crmr0), k)
-                        if reduced_lengths[nodeB] < totAnnealLen:
-                            reduced_lengths[nodeB] = 0.
-                            first_node = nodeB
-        
-                self.reduced_lengths = np.array(reduced_lengths)
-                self.first_node = first_node
-                return self.reduced_lengths, self.first_node
+                break
 
             # Update tiq for this time step
             if reduced_lengths[node] < 0.999:
@@ -408,8 +403,6 @@ class Ketcham1999(AnnealingModel):
         self.reduced_lengths = np.array(reduced_lengths)
         self.first_node = first_node
         return self.reduced_lengths, self.first_node
-
-
 
 
 class Ketcham2007(AnnealingModel):
@@ -477,14 +470,12 @@ class Ketcham2007(AnnealingModel):
         cdef int node, nodeB
         cdef double equivTime
         cdef double timeInt, x1, x2
-        cdef double totAnnealLen
         cdef double equivTotAnnLen
         cdef double k
         cdef double calc
         cdef double tempCalc
         cdef double MIN_OBS_RCMOD = _MIN_OBS_RCMOD
 
-        # Fanning Curvilinear Model lcMod FC, See Ketcham 1999, Table 5e
         cdef annealModel modKetch07 = annealModel(
             c0=0.39528,
             c1=0.01073,
@@ -495,8 +486,7 @@ class Ketcham2007(AnnealingModel):
 
         k = 1.04 - crmr0
 
-        totAnnealLen = MIN_OBS_RCMOD
-        equivTotAnnLen =  pow(totAnnealLen, 1.0 / k) * (1.0 - crmr0) + crmr0
+        equivTotAnnLen =  pow(MIN_OBS_RCMOD, 1.0 / k) * (1.0 - crmr0) + crmr0
 
         equivTime = 0.
         tempCalc = log(1.0 / ((temperature[numTTnodes - 2] +  temperature[numTTnodes - 1]) / 2.0))
@@ -509,6 +499,7 @@ class Ketcham2007(AnnealingModel):
 
             if reduced_lengths[node] < equivTotAnnLen:
                 reduced_lengths[node] = 0.
+                
             # Check to see if we've reached the end of the length distribution
             # If so, we then do the kinetic conversion.
             if reduced_lengths[node] == 0.0 or node == 0:
@@ -523,17 +514,15 @@ class Ketcham2007(AnnealingModel):
                     else:
                         # This is equation 8 from Ketcham et al, 1999
                         reduced_lengths[nodeB] = pow((reduced_lengths[nodeB] - crmr0) / (1.0 - crmr0), k)
-                        if reduced_lengths[nodeB] < totAnnealLen:
-                            reduced_lengths[nodeB] = 0.
-                            first_node = nodeB
+                break
         
-                self.reduced_lengths = np.array(reduced_lengths)
-                self.first_node = first_node
-                return self.reduced_lengths, self.first_node
-
             # Update tiq for this time step
             if reduced_lengths[node] < 0.999:
                 tempCalc = log(1.0 / ((temperature[node-1] + temperature[node]) / 2.0))
                 equivTime = pow(1.0 / reduced_lengths[node] - 1.0, modKetch07.a)
                 equivTime = (equivTime - modKetch07.c0) / modKetch07.c1
                 equivTime = exp(equivTime * (tempCalc - modKetch07.c3) + modKetch07.c2)
+
+        self.reduced_lengths = np.array(reduced_lengths)
+        self.first_node = first_node
+        return self.reduced_lengths, self.first_node
