@@ -321,12 +321,12 @@ class FanningLinear(AnnealingModel):
         x1 = (log(dt) - c2) / (temperature - c3)
         x2 = 1.0 + a * (c0 + c1 * x1)
 
-        if x2 < 0:
+        if x2 <= 0:
             return 0.
         else:
             reduced_length = pow(x2, 1.0 / a)
             x3 = 1.0 - b * reduced_length
-            if x3 < 0:
+            if x3 <= 0:
                 return 0.
             else:
                 return pow(x3, 1.0 / b)
@@ -373,12 +373,12 @@ class FanningCurviLinear(AnnealingModel):
         x1 = (log(dt) - c2) / (log(temperature) - c3)
         x2 = 1.0 + a * (c0 + c1 * x1)
 
-        if x2 < 0:
+        if x2 <= 0:
             return 0.
         else:
             reduced_length = pow(x2, 1.0 / a)
             x3 = 1.0 - b * reduced_length
-            if x3 < 0:
+            if x3 <= 0:
                 return 0.
             elif b != 0:
                 return pow(x3, 1.0 / b)
@@ -484,23 +484,18 @@ class Ketcham1999(FanningCurviLinear):
         cdef double crmr0 = self.rmr0
         cdef double k
         cdef double MIN_OBS_RCMOD = _MIN_OBS_RCMOD
-        cdef double totAnnealLen, equivTotAnnLen
+        cdef double equivTotAnnLen
         cdef int numTTnodes = self.history.time.shape[0]
  
         k = 1 - crmr0
-
-        totAnnealLen = MIN_OBS_RCMOD
-        equivTotAnnLen =  pow(totAnnealLen, 1.0 / k) * (1.0 - crmr0) + crmr0
+        equivTotAnnLen =  pow(MIN_OBS_RCMOD, 1.0 / k) * (1.0 - crmr0) + crmr0
         
         for node in range(first_node, numTTnodes - 1):
-            if reduced_lengths[node] < crmr0:
+            if reduced_lengths[node] < crmr0 or reduced_lengths[node] < MIN_OBS_RCMOD:
                 reduced_lengths[node] = 0.0
                 first_node = node
             else:
                 reduced_lengths[node] = pow((reduced_lengths[node] - crmr0) / (1.0 - crmr0), k)
-                if reduced_lengths[node] < equivTotAnnLen:
-                    reduced_lengths[node] = 0.
-                    first_node = node
 
         return reduced_lengths, first_node
 
@@ -603,23 +598,19 @@ class Ketcham2007(FanningCurviLinear):
         cdef double crmr0 = self.rmr0
         cdef double k
         cdef double MIN_OBS_RCMOD = _MIN_OBS_RCMOD
-        cdef double totAnnealLen, equivTotAnnLen
+        cdef double equivTotAnnLen
         cdef int numTTnodes = self.history.time.shape[0]
  
         k = 1.04 - crmr0
 
-        totAnnealLen = MIN_OBS_RCMOD
-        equivTotAnnLen =  pow(totAnnealLen, 1.0 / k) * (1.0 - crmr0) + crmr0
+        equivTotAnnLen =  pow(MIN_OBS_RCMOD, 1.0 / k) * (1.0 - crmr0) + crmr0
         
         for node in range(first_node, numTTnodes - 1):
-            if reduced_lengths[node] < crmr0:
+            if reduced_lengths[node] < crmr0 or reduced_lengths[node] < MIN_OBS_RCMOD:
                 reduced_lengths[node] = 0.0
                 first_node = node
             else:
                 reduced_lengths[node] = pow((reduced_lengths[node] - crmr0) / (1.0 - crmr0), k)
-                if reduced_lengths[node] < equivTotAnnLen:
-                    reduced_lengths[node] = 0.
-                    first_node = node
 
         return reduced_lengths, first_node
 
