@@ -543,8 +543,7 @@ class Ketcham2007(FanningCurviLinear):
                                  "c1": 0.01073,
                                  "c2": -65.12969,
                                  "c3": -7.91715,
-                                 "a": 0.04672,
-                                 "b": 0}
+                                 "a": 0.04672}
        
         super(Ketcham2007, self).__init__(
                 self.model_parameters,
@@ -615,7 +614,6 @@ class Ketcham2007(FanningCurviLinear):
         cdef double c2 = <double> self.model_parameters["c2"]
         cdef double c3 = <double> self.model_parameters["c3"]
         cdef double a = <double> self.model_parameters["a"]
-        cdef double b = <double> self.model_parameters["b"]
         cdef double reduced_length
         
         x1 = (log(dt) - c2) / (log(temperature) - c3)
@@ -628,7 +626,6 @@ class Ketcham2007(FanningCurviLinear):
         cdef double c2 = <double> self.model_parameters["c2"]
         cdef double c3 = <double> self.model_parameters["c3"]
         cdef double a = <double> self.model_parameters["a"]
-        cdef double b = <double> self.model_parameters["b"]
         cdef double equivTime
         equivTime = pow(1.0 / reduced_length - 1.0, a)
         equivTime = (equivTime - c0) / c1
