@@ -379,3 +379,42 @@ def test_generate_synthetic_sample_wolf1():
     sample = model.generate_synthetic_sample()
     sample.save("WOLF1.h5")
     assert isinstance(sample, FT.Sample)
+
+def test_ketcham_2003_C3_model_for_lengths():
+    from pyFTracks.annealing import calculate_mean_length_ketcham2003
+    assert calculate_mean_length_ketcham2003(16, False) == pytest.approx(15.47, abs=0.01)
+    assert calculate_mean_length_ketcham2003(15, False) == pytest.approx(14.06, abs=0.01)
+    assert calculate_mean_length_ketcham2003(14, False) == pytest.approx(12.55, abs=0.01)
+    assert calculate_mean_length_ketcham2003(13, False) == pytest.approx(10.93, abs=0.01)
+    assert calculate_mean_length_ketcham2003(12, False) == pytest.approx(9.21, abs=0.01)
+    assert calculate_mean_length_ketcham2003(11, False) == pytest.approx(7.38, abs=0.01)
+    assert calculate_mean_length_ketcham2003(10, False) == pytest.approx(5.44, abs=0.01)
+    assert calculate_mean_length_ketcham2003(9.3,  False) == pytest.approx(4.02, abs=0.01)
+    assert calculate_mean_length_ketcham2003(16.0, True) == pytest.approx(15.43, abs=0.01)
+    assert calculate_mean_length_ketcham2003(15.0, True) == pytest.approx(13.99, abs=0.01)
+    assert calculate_mean_length_ketcham2003(14.0, True) == pytest.approx(12.55, abs=0.01)
+    assert calculate_mean_length_ketcham2003(13.0, True) == pytest.approx(11.11, abs=0.01)
+    assert calculate_mean_length_ketcham2003(12.0, True) == pytest.approx(9.67, abs=0.01)
+    assert calculate_mean_length_ketcham2003(11.0, True) == pytest.approx(8.22, abs=0.01)
+    assert calculate_mean_length_ketcham2003(10.0, True) == pytest.approx(6.78, abs=0.01)
+    assert calculate_mean_length_ketcham2003(9.3,  True) == pytest.approx(5.77, abs=0.01)
+
+
+def test_ketcham_2003_C3_model_for_reduced_lengths():
+    from pyFTracks.annealing import calculate_mean_reduced_length_ketcham2003
+    assert calculate_mean_reduced_length_ketcham2003(1.0, False) == pytest.approx(0.997, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.9, False) == pytest.approx(0.856, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.8, False) == pytest.approx(0.696, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.75, False) == pytest.approx(0.610, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.7, False) == pytest.approx(0.520, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.65, False) == pytest.approx(0.425, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.6, False) == pytest.approx(0.325, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.55,  False) == pytest.approx(0.221, abs=0.01)
+    assert calculate_mean_reduced_length_ketcham2003(1.0, True) == pytest.approx(0.998, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.9, True) == pytest.approx(0.851, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.8, True) == pytest.approx(0.704, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.75, True) == pytest.approx(0.631, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.7, True) == pytest.approx(0.557, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.65, True) == pytest.approx(0.484, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.6, True) == pytest.approx(0.410, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham2003(0.55,  True) == pytest.approx(0.336, abs=0.001)
