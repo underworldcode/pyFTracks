@@ -110,22 +110,11 @@ class AnnealingModel():
         for node in range(numTTnodes - 2, -1, -1):
             timeInt = time[node] - time[node + 1] + equivTime
             reduced_lengths[node] = self.calculate_reduced_length(timeInt, tempCalc)
-
-            # Update tiq for this time step
-            if reduced_lengths[node] < 0.999:
-                tempCalc = 1.0 / ((temperature[node-1] + temperature[node]) / 2.0)
-                equivTime = self.calculate_equivalent_time(reduced_lengths[node], tempCalc)
-
-            # Check to see if we've reached the end of the length distribution
-            # If so, we then do the kinetic conversion.
-            if reduced_lengths[node] == 0.0 or node == 0:
-                if node > 0:
-                    node += 1
-                first_node = node
-                break
+            tempCalc = 1.0 / ((temperature[node-1] + temperature[node]) / 2.0)
+            equivTime = self.calculate_equivalent_time(reduced_lengths[node], tempCalc)
 
         self.reduced_lengths = np.array(reduced_lengths)
-        self.first_node = first_node
+        self.first_node = (self.reduced_lengths >= _MIN_OBS_RCMOD).argmax()
         return self.reduced_lengths, self.first_node
 
     def _sum_populations(self, track_l0=16.1, nbins=200):
@@ -469,7 +458,7 @@ class Ketcham1999(FanningCurviLinear):
         reduced_lengths, first_node = FanningCurviLinear.annealing(self)
         reduced_lengths, first_node = self.convert_reduced_lengths(reduced_lengths, first_node)
         self.reduced_lengths = np.array(reduced_lengths)
-        self.first_node = first_node
+        self.first_node = (self.reduced_lengths >= _MIN_OBS_RCMOD).argmax()
         return self.reduced_lengths, self.first_node
 
     def convert_reduced_lengths(self, double[::1] reduced_lengths, int first_node):
@@ -491,7 +480,7 @@ class Ketcham1999(FanningCurviLinear):
         equivTotAnnLen =  pow(MIN_OBS_RCMOD, 1.0 / k) * (1.0 - crmr0) + crmr0
         
         for node in range(first_node, numTTnodes - 1):
-            if reduced_lengths[node] < crmr0 or reduced_lengths[node] < MIN_OBS_RCMOD:
+            if reduced_lengths[node] < crmr0:
                 reduced_lengths[node] = 0.0
                 first_node = node
             else:
@@ -583,7 +572,7 @@ class Ketcham2007(FanningCurviLinear):
         reduced_lengths, first_node = FanningCurviLinear.annealing(self)
         reduced_lengths, first_node = self.convert_reduced_lengths(reduced_lengths, first_node)
         self.reduced_lengths = np.array(reduced_lengths)
-        self.first_node = first_node
+        self.first_node = (self.reduced_lengths >= _MIN_OBS_RCMOD).argmax()
         return self.reduced_lengths, self.first_node
 
     def convert_reduced_lengths(self, double[::1] reduced_lengths, int first_node):

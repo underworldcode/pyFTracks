@@ -3,6 +3,7 @@ import cython
 import numpy as np
 cimport numpy as np
 from libc.math cimport fabs
+from scipy import interpolate
 
 
 cdef calculate_annealing_temperature(double abs_gradient):
@@ -11,6 +12,8 @@ cdef calculate_annealing_temperature(double abs_gradient):
         for a given heating or cooling rate (R) is given by the equation:
       
                           Ta = 377.67 * R**0.019837
+
+        This is taken from Ketcham et al, 2005
     """ 
     return 377.67 * abs_gradient**0.019837
 
@@ -34,7 +37,7 @@ class ThermalHistory(object):
             time = time[::-1]
             temperature = temperature[::-1]
 
-        if np.any(temperature < 273.):
+        if np.any(temperature < 273.15):
             print("It looks like you have entered temperature in Celsius...Converting temperature to Kelvin")
             temperature += 273.15  
 
@@ -158,6 +161,10 @@ class ThermalHistory(object):
         self.time = np.array(new_time)[:new_npoints]
         self.temperature = np.array(new_temperature)[:new_npoints]
         return self.time, self.temperature
+
+    def get_temperature_at_time(self, time):
+        f = interpolate.interp1d(self.input_time, self.input_temperature) 
+        return f(time)
 
 
 # Some useful thermal histories
