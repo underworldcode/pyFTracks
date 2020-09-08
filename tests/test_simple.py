@@ -236,7 +236,7 @@ def test_old_age_wolf5_ketcham_1999():
     model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
     model.history = WOLF5
     old, _, _ = model.calculate_age(16.1)
-    assert(model_age == pytest.approx(26.0, abs=0.1))
+    assert(old == pytest.approx(100., abs=0.1))
 
 def test_old_age_vrolij_ketcham_1998():
     from pyFTracks.annealing import Ketcham1998
