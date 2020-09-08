@@ -7,11 +7,7 @@ cimport numpy as np
 from libc.math cimport exp, pow, log
 from pyFTracks.structures import Sample
 
-_MIN_OBS_RCMOD = 0.55
-
-
-cdef struct annealModel:
-    double c0, c1, c2, c3, a, b
+_MIN_OBS_RCMOD = 0.13
 
 cdef correct_observational_bias(double rcmod):
     """
@@ -69,9 +65,7 @@ cdef calculate_mean_reduced_length_ketcham2003(double redLength, int usedCf):
     else:
         return -1.2101 + 3.0864 * redLength - 0.8792 * redLength * redLength
 
-
 _seconds_in_megayears = 31556925974700
-
 
 class AnnealingModel():
 
@@ -88,6 +82,12 @@ class AnnealingModel():
     @history.setter
     def history(self, value):
         self._history = value
+
+    def calculate_mean_reduced_length(self):
+        return calculate_mean_reduced_length_ketcham1999
+
+    def _equivTotAnnLen(self):
+        return _MIN_OBS_RCMOD
 
     def annealing(self):
 
@@ -113,8 +113,17 @@ class AnnealingModel():
             tempCalc = 1.0 / ((temperature[node-1] + temperature[node]) / 2.0)
             equivTime = self.calculate_equivalent_time(reduced_lengths[node], tempCalc)
 
+            if reduced_lengths[node] < self._equivTotAnnLen():
+                reduced_lengths[node] = 0
+
+            if reduced_lengths[node] == 0:
+                if node > 0:
+                    first_node = node - 1
+                else:
+                    first_node = 0
+
         self.reduced_lengths = np.array(reduced_lengths)
-        self.first_node = (self.reduced_lengths >= _MIN_OBS_RCMOD).argmax()
+        self.first_node = first_node
         return self.reduced_lengths, self.first_node
 
     def _sum_populations(self, track_l0=16.1, nbins=200):
@@ -154,11 +163,7 @@ class AnnealingModel():
             weight = wt1 - wt2
             wt1 = wt2
 
-            # Californium irradiation of apatite can be a useful technique for increasing the number
-            # of confined tracks. It will however change the biasing of track detection.
-            # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
-            # use the empirical function provided by Ketcham et al 1999.
-            rmLen = calculate_mean_reduced_length_ketcham1999(reduced_lengths[j], usedCf)
+            rmLen = self.calculate_mean_reduced_length()(reduced_lengths[j], usedCf)
             
             rStDev = calculate_reduced_stddev(rmLen, project)
             obsBias = correct_observational_bias(rmLen)
@@ -458,8 +463,10 @@ class Ketcham1999(FanningCurviLinear):
         reduced_lengths, first_node = FanningCurviLinear.annealing(self)
         reduced_lengths, first_node = self.convert_reduced_lengths(reduced_lengths, first_node)
         self.reduced_lengths = np.array(reduced_lengths)
-        self.first_node = (self.reduced_lengths >= _MIN_OBS_RCMOD).argmax()
+        self.first_node = first_node
         return self.reduced_lengths, self.first_node
+
+
 
     def convert_reduced_lengths(self, double[::1] reduced_lengths, int first_node):
         """ Apatite with the composition of B2 are very rare, B2 is
@@ -477,12 +484,11 @@ class Ketcham1999(FanningCurviLinear):
         cdef int numTTnodes = self.history.time.shape[0]
  
         k = 1 - crmr0
-        equivTotAnnLen =  pow(MIN_OBS_RCMOD, 1.0 / k) * (1.0 - crmr0) + crmr0
         
         for node in range(first_node, numTTnodes - 1):
-            if reduced_lengths[node] < crmr0:
+            if reduced_lengths[node] < crmr0 or reduced_lengths[node] < MIN_OBS_RCMOD:
                 reduced_lengths[node] = 0.0
-                first_node = node
+                first_node = node + 1
             else:
                 reduced_lengths[node] = pow((reduced_lengths[node] - crmr0) / (1.0 - crmr0), k)
 
@@ -571,8 +577,19 @@ class Ketcham2007(FanningCurviLinear):
         reduced_lengths, first_node = FanningCurviLinear.annealing(self)
         reduced_lengths, first_node = self.convert_reduced_lengths(reduced_lengths, first_node)
         self.reduced_lengths = np.array(reduced_lengths)
-        self.first_node = (self.reduced_lengths >= _MIN_OBS_RCMOD).argmax()
+        self.first_node = first_node
         return self.reduced_lengths, self.first_node
+
+    def calculate_mean_reduced_length(self):
+        return calculate_mean_reduced_length_ketcham2003
+    
+    def _equivTotAnnLen(self):
+        cdef double crmr0 = self.rmr0
+        cdef double k
+        cdef double MIN_OBS_RCMOD = _MIN_OBS_RCMOD
+ 
+        k = 1.04 - crmr0
+        return pow(MIN_OBS_RCMOD, 1.0 / k) * (1.0 - crmr0) + crmr0
 
     def convert_reduced_lengths(self, double[::1] reduced_lengths, int first_node):
         """ Apatite with the composition of B2 are very rare, B2 is
@@ -591,12 +608,10 @@ class Ketcham2007(FanningCurviLinear):
  
         k = 1.04 - crmr0
 
-        equivTotAnnLen =  pow(MIN_OBS_RCMOD, 1.0 / k) * (1.0 - crmr0) + crmr0
-        
         for node in range(first_node, numTTnodes - 1):
             if reduced_lengths[node] < crmr0 or reduced_lengths[node] < MIN_OBS_RCMOD:
                 reduced_lengths[node] = 0.0
-                first_node = node
+                first_node = node + 1
             else:
                 reduced_lengths[node] = pow((reduced_lengths[node] - crmr0) / (1.0 - crmr0), k)
 
