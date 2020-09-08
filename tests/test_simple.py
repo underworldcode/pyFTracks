@@ -10,6 +10,13 @@ def test_thermal_history():
     assert(np.all(thermal_history.input_time == np.array([0.0, 43.0, 44.0, 100.0])))
     assert(np.all(thermal_history.input_temperature == np.array([283.0, 283.0, 403.0, 403.0])))
 
+def test_thermal_history_entered_as_degC():
+    thermal_history = FT.ThermalHistory(name="My Thermal History",
+        time=[0., 43., 44., 100.],
+        temperature=[10., 10., 130., 130.])
+    assert(np.all(thermal_history.input_time == np.array([0.0, 43.0, 44.0, 100.0])))
+    assert(np.all(thermal_history.input_temperature == np.array([283.15, 283.15, 403.15, 403.15])))
+
 def test_get_isothermal_interval():
     thermal_history = FT.ThermalHistory(name="My Thermal History",
         time=[0., 43., 44., 100.],
@@ -135,68 +142,117 @@ def test_ohapfu_to_rmr0():
     assert(model.convert_OH_pfu_to_rmr0(0.7) == pytest.approx(0.6712590592085016))
     assert(model.convert_OH_pfu_to_rmr0(0.4) == pytest.approx(0.8263996762391478))
 
-def test_wolf1_ketcham_1999():
+def test_age_wolf1_ketcham_1999():
     from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import WOLF1
     model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
     model.history = WOLF1
-    old, model_age, reduced = model.calculate_age(16.1)
-    assert(old == pytest.approx(44.0, abs=0.1))
+    _, model_age, _ = model.calculate_age(16.1)
     assert(model_age == pytest.approx(44.9, abs=0.1))
 
-def test_wolf2_ketcham_1999():
+def test_age_wolf2_ketcham_1999():
     from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import WOLF2
     model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
     model.history = WOLF2
-    old, model_age, reduced = model.calculate_age(16.1)
-    assert(old == pytest.approx(79.5, abs=0.1))
+    _, model_age, _ = model.calculate_age(16.1)
     assert(model_age == pytest.approx(66.5, abs=0.1))
 
-def test_wolf3_ketcham_1999():
+def test_age_wolf3_ketcham_1999():
     from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import WOLF3
     model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
     model.history = WOLF3
-    old, model_age, _ = model.calculate_age(16.1)
-    assert(old == pytest.approx(100., abs=0.1))
+    _, model_age, _ = model.calculate_age(16.1)
     assert(model_age == pytest.approx(87.9, abs=0.1))
 
-def test_wolf4_ketcham_1999():
+def test_age_wolf4_ketcham_1999():
     from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import WOLF4
     model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
     model.history = WOLF4
-    old, model_age, _ = model.calculate_age(16.1)
-    assert(old == pytest.approx(100., abs=0.1))
+    _, model_age, _ = model.calculate_age(16.1)
     assert(model_age == pytest.approx(85.8, abs=0.1))
 
-def test_wolf5_ketcham_1999():
+def test_age_wolf5_ketcham_1999():
     from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import WOLF5
     model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
     model.history = WOLF5
-    old, model_age, _ = model.calculate_age(16.1)
-    assert(old == pytest.approx(100., abs=0.1))
+    _, model_age, _ = model.calculate_age(16.1)
     assert(model_age == pytest.approx(26.0, abs=0.1))
 
-def test_vrolij_ketcham_1999():
+def test_age_vrolij_ketcham_1999():
     from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import VROLIJ
     model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
     model.history = VROLIJ
-    old, model_age, reduced = model.calculate_age(16.1)
-    assert(old == pytest.approx(113., abs=0.1))
+    _, model_age, reduced = model.calculate_age(16.1)
     assert(model_age == pytest.approx(113.0, abs=0.1))
 
-def test_flaxmans_ketcham_1999():
+def test_age_flaxmans_ketcham_1999():
     from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import FLAXMANS1
     model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
     model.history = FLAXMANS1
-    old, model_age, _ = model.calculate_age(16.1)
-    assert(old == pytest.approx(0.05, abs=0.5))
+    _, model_age, _ = model.calculate_age(16.1)
     assert(model_age == pytest.approx(0.04, abs=0.5))
+
+def test_old_age_wolf1_ketcham_1999():
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import WOLF1
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF1
+    old, _, _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(44.0, abs=0.1))
+
+def test_old_age_wolf2_ketcham_1999():
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import WOLF2
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF2
+    old, _, _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(79.5, abs=0.1))
+
+def test_old_age_wolf3_ketcham_1999():
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import WOLF3
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF3
+    old, _, _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(100., abs=0.1))
+
+def test_old_age_wolf4_ketcham_1999():
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import WOLF4
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF4
+    old, _,  _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(100., abs=0.1))
+
+def test_old_age_wolf5_ketcham_1999():
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import WOLF5
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF5
+    old, _, _ = model.calculate_age(16.1)
+    assert(model_age == pytest.approx(26.0, abs=0.1))
+
+def test_old_age_vrolij_ketcham_1998():
+    from pyFTracks.annealing import Ketcham1998
+    from pyFTracks.thermal_history import VROLIJ
+    model = Ketcham1998({"ETCH_PIT_LENGTH": 1.65})
+    model.history = VROLIJ
+    old, _, _ = model.calculate_age(15.1)
+    assert(old == pytest.approx(113., abs=0.1))
+
+def test_old_age_flaxmans_ketcham_1999():
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import FLAXMANS1
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = FLAXMANS1
+    old, _, _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(0.05, abs=0.5))
 
 def test_wolf1_ketcham_2007():
     from pyFTracks.annealing import Ketcham2007
@@ -212,8 +268,7 @@ def test_wolf2_ketcham_2007():
     from pyFTracks.thermal_history import WOLF2
     model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
     model.history = WOLF2
-    old, model_age, _ = model.calculate_age(16.1)
-    assert(old == pytest.approx(76.0, abs=0.5))
+    _, model_age, _ = model.calculate_age(16.1)
     assert(model_age == pytest.approx(61.9, abs=0.5))
 
 def test_wolf3_ketcham_2007():
@@ -267,6 +322,53 @@ def test_flaxmans_ketcham_2007():
 #    assert Miller.central_age_se == pytest.approx(8.51013)
 #    assert Miller.central_age_sigma == pytest.approx(5.1978e-5, rel=1e-7)
 
+def test_old_age_wolf1_ketcham_2007():
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import WOLF1
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF1
+    old, _, _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(44.0, abs=0.5))
+
+def test_old_wolf3_ketcham_2007():
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import WOLF3
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF3
+    old, _, _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(100.0, abs=0.5))
+
+def test_old_age_wolf4_ketcham_2007():
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import WOLF4
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF4
+    old, _, _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(100.0, abs=0.5))
+
+def test_old_age_wolf5_ketcham_2007():
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import WOLF5
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF5
+    old, _, _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(19.5, abs=0.5))
+
+def test_old_age_vrolij_ketcham_2007():
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import VROLIJ
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = VROLIJ
+    old, _, _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(113., abs=0.5))
+
+def test_old_age_flaxmans_ketcham_2007():
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import FLAXMANS1
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = FLAXMANS1
+    old, _, _ = model.calculate_age(16.1)
+    assert(old == pytest.approx(0.05, abs=0.5))
 
 def test_generate_synthetic_sample_wolf1():
     from pyFTracks.annealing import Ketcham1999
