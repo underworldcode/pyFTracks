@@ -238,10 +238,10 @@ def test_old_age_wolf5_ketcham_1999():
     old, _, _ = model.calculate_age(16.1)
     assert(old == pytest.approx(100., abs=0.1))
 
-def test_old_age_vrolij_ketcham_1998():
-    from pyFTracks.annealing import Ketcham1998
+def test_old_age_vrolij_ketcham_1999():
+    from pyFTracks.annealing import Ketcham1999
     from pyFTracks.thermal_history import VROLIJ
-    model = Ketcham1998({"ETCH_PIT_LENGTH": 1.65})
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
     model.history = VROLIJ
     old, _, _ = model.calculate_age(15.1)
     assert(old == pytest.approx(113., abs=0.1))
