@@ -5,4 +5,4 @@ include README.rst
 include setup.cfg
 include pyFTracks/ressources/*.h5
 include pyFTracks/ressources/*.csv
-recursive-include pyFTracks *.c *h *.pyx
+recursive-include pyFTracks *.pyx

@@ -55,7 +55,9 @@ cdef calculate_mean_reduced_length_ketcham1999(double redLength, int usedCf):
         return -1.499 * redLength * redLength + 4.150 * redLength - 1.656
 
 
-cdef calculate_mean_reduced_length_ketcham2003(double redLength, int usedCf):
+cpdef calculate_mean_reduced_length_ketcham2003(double redLength, int usedCf):
+    """ Relates mean c-axis projected reduced lengths to non-projected reduced lengths"""
+
     # Californium irradiation of apatite can be a useful technique for increasing the number
     # of confined tracks. It will however change the biasing of track detection.
     # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
@@ -64,6 +66,17 @@ cdef calculate_mean_reduced_length_ketcham2003(double redLength, int usedCf):
         return -0.4720 + 1.4701 * redLength  
     else:
         return -1.2101 + 3.0864 * redLength - 0.8792 * redLength * redLength
+
+
+cpdef calculate_mean_length_ketcham2003(double length, int usedCf):
+    """ Relates mean c-axis projected lengths to non-projected lengths"""
+    
+    if usedCf:
+        return -7.6425 + 1.4423 * length 
+    else:
+        return -19.8339 + 3.0619 * length -0.0535 * length * length
+
+
 
 _seconds_in_megayears = 31556925974700
 
@@ -118,7 +131,7 @@ class AnnealingModel():
 
             if reduced_lengths[node] == 0:
                 if node > 0:
-                    first_node = node - 1
+                    first_node = node + 1
                 else:
                     first_node = 0
 
@@ -488,7 +501,7 @@ class Ketcham1999(FanningCurviLinear):
         for node in range(first_node, numTTnodes - 1):
             if reduced_lengths[node] < crmr0 or reduced_lengths[node] < MIN_OBS_RCMOD:
                 reduced_lengths[node] = 0.0
-                first_node = node + 1
+                first_node = node
             else:
                 reduced_lengths[node] = pow((reduced_lengths[node] - crmr0) / (1.0 - crmr0), k)
 
@@ -611,7 +624,7 @@ class Ketcham2007(FanningCurviLinear):
         for node in range(first_node, numTTnodes - 1):
             if reduced_lengths[node] < crmr0 or reduced_lengths[node] < MIN_OBS_RCMOD:
                 reduced_lengths[node] = 0.0
-                first_node = node + 1
+                first_node = node
             else:
                 reduced_lengths[node] = pow((reduced_lengths[node] - crmr0) / (1.0 - crmr0), k)
 
