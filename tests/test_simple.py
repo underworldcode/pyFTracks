@@ -465,3 +465,206 @@ cooling_1C_per_myr = FT.ThermalHistory(name="1C per Myr Cooling",
 #     model.calculate_age()
 #     TA = model.history.get_temperature_at_time(model.oldest_age) - 273.15
 #     assert TA == pytest.approx(0, abs=1)
+
+## Crowley Fluoro0Apatite
+
+
+def test_age_wolf1_crowley_1990():
+    model_age = 51.2
+    assert(model_age == pytest.approx(51.2, abs=1.0))
+
+def test_old_age_wolf1_crowley_1990():
+    old_age = 61.0
+    assert(old_age == pytest.approx(61.0, abs=1.0))
+
+def test_track_length_wolf1_crowley_1990():
+    l0 = 16.3 #constant
+    track_length = 14.31
+    track_length_error = 2.39 
+    assert(track_length == pytest.approx(14.31, abs=0.1))
+
+def test_age_wolf2_crowley_1990():
+    model_age = 88.3
+    assert(model_age == pytest.approx(88.3, abs=1.0))
+
+def test_old_age_wolf2_crowley_1990():
+    old_age = 100.0
+    assert(old_age == pytest.approx(100., abs=1.0))
+
+def test_track_length_wolf2_crowley_1990():
+    l0 = 16.3 #constant
+    track_length = 13.44
+    track_length_error = 1.88 
+    assert(track_length == pytest.approx(13.44, abs=0.1))
+
+def test_age_wolf3_crowley_1990():
+    model_age = 94.6
+    assert(model_age == pytest.approx(94.6, abs=1.0))
+
+def test_old_age_wolf3_crowley_1990():
+    old_age = 100.0
+    assert(old_age == pytest.approx(100., abs=1.0))
+
+def test_track_length_wolf3_crowley_1990():
+    l0 = 16.3 #constant
+    track_length = 13.92
+    track_length_error = 1.26 
+    assert(track_length == pytest.approx(13.92, abs=0.1))
+
+def test_age_wolf4_crowley_1990():
+    model_age = 93.6
+    assert(model_age == pytest.approx(93.6, abs=1.0))
+
+def test_old_age_wolf4_crowley_1990():
+    old_age = 100.0
+    assert(old_age == pytest.approx(100., abs=1.0))
+
+def test_track_length_wolf4_crowley_1990():
+    l0 = 16.3 #constant
+    track_length = 13.79
+    track_length_error = 1.27 
+    assert(track_length == pytest.approx(13.79, abs=0.1))
+
+def test_age_wolf5_crowley_1990():
+    model_age = 82.1
+    assert(model_age == pytest.approx(82.1, abs=1.0))
+
+def test_old_age_wolf5_crowley_1990():
+    old_age = 100.0
+    assert(old_age == pytest.approx(100.0, abs=1.0))
+
+def test_track_length_wolf5_crowley_1990():
+    l0 = 16.3 #constant
+    track_length = 12.20
+    track_length_error = 1.37 
+    assert(track_length == pytest.approx(12.20, abs=0.1))
+
+def test_age_flaxmans_crowley_1990():
+    model_age = 30.5
+    assert(model_age == pytest.approx(30.5, abs=1.0))
+
+def test_old_age_flaxmans_crowley_1990():
+    old_age = 110.0
+    assert(old_age == pytest.approx(110., abs=1.0))
+
+def test_track_length_flaxmans_crowley_1990():
+    l0 = 16.3 #constant
+    track_length = 8.09
+    track_length_error = 2.50 
+    assert(track_length == pytest.approx(8.09, abs=0.1))
+
+def test_age_vrolij_crowley_1990():
+    model_age = 115
+    assert(model_age == pytest.approx(115, abs=1.0))
+
+def test_old_age_vrolij_crowley_1990():
+    old_age = 113
+    assert(old_age == pytest.approx(113., abs=1.0))
+
+def test_track_length_vrolij_crowley_1990():
+    l0 = 16.3 #constant
+    track_length = 14.87
+    track_length_error = 1.08 
+    assert(track_length == pytest.approx(14.87, abs=0.1))
+
+
+# Laslett 1987 Durango
+
+
+def test_age_wolf1_laslett_1987():
+    model_age = 46.9
+    assert(model_age == pytest.approx(46.9, abs=1.0))
+
+def test_old_age_wolf1_laslett_1987():
+    old_age = 44.0
+    assert(old_age == pytest.approx(44.0, abs=1.0))
+
+def test_track_length_wolf1_laslett_1987():
+    l0 = 16.3 #constant
+    track_length = 15.57
+    track_length_error = 1.14 
+    assert(track_length == pytest.approx(15.57, abs=0.1))
+
+def test_age_wolf2_laslett_1987():
+    model_age = 75.1
+    assert(model_age == pytest.approx(75.1, abs=1.0))
+
+def test_old_age_wolf2_laslett_1987():
+    old_age = 87.0
+    assert(old_age == pytest.approx(87., abs=1.0))
+
+def test_track_length_wolf2_laslett_1987():
+    l0 = 16.3 #constant
+    track_length = 13.71
+    track_length_error = 2.24 
+    assert(track_length == pytest.approx(13.71, abs=0.1))
+
+def test_age_wolf3_laslett_1987():
+    model_age = 93.5
+    assert(model_age == pytest.approx(93.5, abs=1.0))
+
+def test_old_age_wolf3_laslett_1987():
+    old_age = 100.0
+    assert(old_age == pytest.approx(100., abs=1.0))
+
+def test_track_length_wolf3_laslett_1987():
+    l0 = 16.3 #constant
+    track_length = 13.83
+    track_length_error = 1.52 
+    assert(track_length == pytest.approx(13.83, abs=0.1))
+
+def test_age_wolf4_laslett_1987():
+    model_age = 85.8
+    assert(model_age == pytest.approx(85.8, abs=1.0))
+
+def test_old_age_wolf4_laslett_1987():
+    old_age = 100.0
+    assert(old_age == pytest.approx(100., abs=1.0))
+
+def test_track_length_wolf4_laslett_1987():
+    l0 = 16.3 #constant
+    track_length = 12.88
+    track_length_error = 1.63 
+    assert(track_length == pytest.approx(12.88, abs=0.1))
+
+def test_age_wolf5_laslett_1987():
+    model_age = 56.1
+    assert(model_age == pytest.approx(56.1, abs=1.0))
+
+def test_old_age_wolf5_laslett_1987():
+    old_age = 100.0
+    assert(old_age == pytest.approx(100.0, abs=1.0))
+
+def test_track_length_wolf5_laslett_1987():
+    l0 = 16.3 #constant
+    track_length = 10.33
+    track_length_error = 2.17 
+    assert(track_length == pytest.approx(10.33, abs=0.1))
+
+def test_age_flaxmans_laslett_1987():
+    model_age = 0.30
+    assert(model_age == pytest.approx(0.30, abs=1.0))
+
+def test_old_age_flaxmans_laslett_1987():
+    old_age = 0.60
+    assert(old_age == pytest.approx(0.60, abs=1.0))
+
+def test_track_length_flaxmans_laslett_1987():
+    l0 = 16.3 #constant
+    track_length = 8.49
+    track_length_error = 2.47 
+    assert(track_length == pytest.approx(8.49, abs=0.1))
+
+def test_age_vrolij_laslett_1987():
+    model_age = 119
+    assert(model_age == pytest.approx(119, abs=1.0))
+
+def test_old_age_vrolij_laslett_1987():
+    old_age = 113
+    assert(old_age == pytest.approx(113., abs=1.0))
+
+def test_track_length_vrolij_laslett_1987():
+    l0 = 16.3 #constant
+    track_length = 15.38
+    track_length_error = 1.10
+    assert(track_length == pytest.approx(15.38, abs=0.1))
