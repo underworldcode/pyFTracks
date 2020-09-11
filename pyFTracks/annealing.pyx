@@ -7,7 +7,8 @@ cimport numpy as np
 from libc.math cimport exp, pow, log
 from pyFTracks.structures import Sample
 
-_MIN_OBS_RCMOD = 0.13
+_MIN_OBS_R = 0.13
+_MIN_OBS_RCMOD = 0.53
 
 cdef correct_observational_bias(double rcmod):
     """
@@ -44,7 +45,7 @@ cdef calculate_reduced_stddev(double redLength, int doProject):
         return(0.4572 - 0.8815 * redLength + 0.4947 * redLength * redLength)
 
 
-cdef calculate_mean_reduced_length_ketcham1999(double redLength, int usedCf):
+cpdef calculate_mean_reduced_length_ketcham1999(double redLength, int usedCf):
     # Californium irradiation of apatite can be a useful technique for increasing the number
     # of confined tracks. It will however change the biasing of track detection.
     # If it is necessary to calculate the mean rather than c-axis-projected lengths, we
@@ -501,7 +502,7 @@ class Ketcham1999(FanningCurviLinear):
         for node in range(first_node, numTTnodes - 1):
             if reduced_lengths[node] < crmr0 or reduced_lengths[node] < MIN_OBS_RCMOD:
                 reduced_lengths[node] = 0.0
-                first_node = node
+                first_node = node + 1
             else:
                 reduced_lengths[node] = pow((reduced_lengths[node] - crmr0) / (1.0 - crmr0), k)
 
@@ -624,7 +625,7 @@ class Ketcham2007(FanningCurviLinear):
         for node in range(first_node, numTTnodes - 1):
             if reduced_lengths[node] < crmr0 or reduced_lengths[node] < MIN_OBS_RCMOD:
                 reduced_lengths[node] = 0.0
-                first_node = node
+                first_node = node + 1
             else:
                 reduced_lengths[node] = pow((reduced_lengths[node] - crmr0) / (1.0 - crmr0), k)
 

@@ -382,6 +382,27 @@ def test_generate_synthetic_sample_wolf1():
     sample.save("WOLF1.h5")
     assert isinstance(sample, FT.Sample)
 
+
+def test_ketcham_1999_model_for_reduced_lengths():
+    from pyFTracks.annealing import calculate_mean_reduced_length_ketcham1999
+    assert calculate_mean_reduced_length_ketcham1999(1.0, False) == pytest.approx(0.995, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.9, False) == pytest.approx(0.865, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.8, False) == pytest.approx(0.705, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.75, False) == pytest.approx(0.613, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.7, False) == pytest.approx(0.514, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.65, False) == pytest.approx(0.408, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.6, False) == pytest.approx(0.294, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.55,  False) == pytest.approx(0.173, abs=0.01)
+    assert calculate_mean_reduced_length_ketcham1999(1.0, True) == pytest.approx(0.994, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.9, True) == pytest.approx(0.855, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.8, True) == pytest.approx(0.715, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.75, True) == pytest.approx(0.645, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.7, True) == pytest.approx(0.575, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.65, True) == pytest.approx(0.506, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.6, True) == pytest.approx(0.436, abs=0.001)
+    assert calculate_mean_reduced_length_ketcham1999(0.55,  True) == pytest.approx(0.366, abs=0.001)
+
+
 def test_ketcham_2003_C3_model_for_lengths():
     from pyFTracks.annealing import calculate_mean_length_ketcham2003
     assert calculate_mean_length_ketcham2003(16, False) == pytest.approx(15.47, abs=0.01)
