@@ -263,46 +263,67 @@ def test_old_age_flaxmans_ketcham_1999():
     assert(old == pytest.approx(0.05, abs=1.0))
 
 def test_track_length_wolf1_ketcham_1999():
-    l0 = 16.1 #constant
-    track_length = 14.91
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import WOLF1
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF1
+    model.calculate_age(16.1)
     track_length_error = 1.10
-    assert(track_length == pytest.approx(14.91, abs=0.1))
+    assert(model.MTL == pytest.approx(14.91, abs=0.1))
 
 def test_track_length_wolf2_ketcham_1999():
-    l0 = 16.1 #constant
-    track_length = 13.29
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import WOLF2
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF2
+    model.calculate_age(16.1)
     track_length_error = 1.94
-    assert(track_length == pytest.approx(13.29, abs=0.1))
+    assert(model.MTL == pytest.approx(13.29, abs=0.1))
 
 def test_track_length_wolf3_ketcham_1999():
-    l0 = 16.1 #constant
-    track_length = 13.06
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import WOLF3
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF3
+    model.calculate_age(16.1)
     track_length_error = 1.56
-    assert(track_length == pytest.approx(13.06, abs=0.1))
+    assert(model.MTL == pytest.approx(13.06, abs=0.1))
 
 def test_track_length_wolf4_ketcham_1999():
-    l0 = 16.1 #constant
-    track_length = 12.88
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import WOLF4
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF4
+    model.calculate_age(16.1)
     track_length_error = 1.63
-    assert(track_length == pytest.approx(12.88, abs=0.1))
+    assert(model.MTL == pytest.approx(12.88, abs=0.1))
 
 def test_track_length_wolf5_ketcham_1999():
-    l0 = 16.1 #constant
-    track_length = 9.41
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import WOLF5
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF5
+    model.calculate_age(16.1)
     track_length_error = 3.14
-    assert(track_length == pytest.approx(9.41, abs=0.1))
+    assert(model.MTL == pytest.approx(9.41, abs=0.1))
 
 def test_track_length_flaxmans_ketcham_1999():
-    l0 = 16.1 #constant
-    track_length = 10.83
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import FLAXMANS1
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = FLAXMANS1
+    model.calculate_age(16.1)
     track_length_error = 1.43
-    assert(track_length == pytest.approx(10.83, abs=0.1))
+    assert(model.MTL == pytest.approx(10.83, abs=0.1))
 
 def test_track_length_vrolij_ketcham_1999():
-    l0 = 16.1 #constant
-    track_length = 14.68
+    from pyFTracks.annealing import Ketcham1999
+    from pyFTracks.thermal_history import VROLIJ
+    model = Ketcham1999({"ETCH_PIT_LENGTH": 1.65})
+    model.history = VROLIJ
+    model.calculate_age(16.1)
     track_length_error = 1.07
-    assert(track_length == pytest.approx(14.68, abs=0.1))
+    assert(model.MTL == pytest.approx(14.68, abs=0.1))
 
 ## Ketcham 2007
 
@@ -417,46 +438,67 @@ def test_old_age_flaxmans_ketcham_2007():
     assert(old == pytest.approx(0.05, abs=1.0))
 
 def test_track_length_wolf1_ketcham_2007_5_5M():
-    l0 = 16.1 # Dpar= 1.65
-    track_length = 14.76
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import WOLF1
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF1
+    model.calculate_age(16.1)
     track_length_error = 1.11
-    assert(track_length == pytest.approx(14.76, abs=0.1))
+    assert(model.MTL == pytest.approx(14.76, abs=0.1))
 
 def test_track_length_wolf2_ketcham_2007_5_5M():
-    l0 = 16.1 # Dpar= 1.65
-    track_length = 12.83
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import WOLF2
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF2
+    model.calculate_age(16.1)
     track_length_error = 2.08
-    assert(track_length == pytest.approx(12.83, abs=0.1))
+    assert(model.MTL == pytest.approx(12.83, abs=0.1))
 
 def test_track_length_wolf3_ketcham_2007_5_5M():
-    l0 = 16.1# Dpar= 1.65
-    track_length = 12.30
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import WOLF3
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF3
+    model.calculate_age(16.1)
     track_length_error = 1.84
-    assert(track_length == pytest.approx(12.30, abs=0.1))
+    assert(model.MTL == pytest.approx(12.30, abs=0.1))
 
 def test_track_length_wolf4_ketcham_2007_5_5M():
-    l0 = 16.1# Dpar= 1.65
-    track_length = 12.14
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import WOLF4
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF4
+    model.calculate_age(16.1)
     track_length_error = 1.90
-    assert(track_length == pytest.approx(12.14, abs=0.1))
+    assert(model.MTL == pytest.approx(12.14, abs=0.1))
 
 def test_track_length_wolf5_ketcham_2007_5_5M():
-    l0 = 16.1
-    track_length = 11.75
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import WOLF5
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = WOLF5
+    model.calculate_age(16.1)
     track_length_error = 3.22
-    assert(track_length == pytest.approx(11.75, abs=0.1))
+    assert(model.MTL == pytest.approx(11.75, abs=0.1))
 
 def test_track_length_flaxmans_ketcham_2007_5_5M():
-    l0 = 16.1 #constant
-    track_length = 9.49
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import FLAXMANS1
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = FLAXMANS1
+    model.calculate_age(16.1)
     track_length_error = 1.77
-    assert(track_length == pytest.approx(9.49, abs=0.1))
+    assert(model.MTL == pytest.approx(9.49, abs=0.1))
 
 def test_track_length_vrolij_ketcham_2007_5_5M():
-    l0 = 16.1 #constant
-    track_length = 14.49
+    from pyFTracks.annealing import Ketcham2007
+    from pyFTracks.thermal_history import VROLIJ
+    model = Ketcham2007({"ETCH_PIT_LENGTH": 1.65})
+    model.history = VROLIJ
+    model.calculate_age(16.1)
     track_length_error = 1.08
-    assert(track_length == pytest.approx(14.49, abs=0.1))
+    assert(model.MTL == pytest.approx(14.49, abs=0.1))
 
 def test_track_length_wolf1_ketcham_2007_5_0M():
     l0 = 16.1 # Dpar= 1.65
