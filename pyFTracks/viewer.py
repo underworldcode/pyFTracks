@@ -93,7 +93,7 @@ class Viewer(object):
             obs_age_label = f"{self.sample.pooled_age:5.2f}"
         
         obs_MTL_label = ""
-        if self.sample and self.sample.track_lengths is not None:
+        if self.sample is not None and self.sample.track_lengths is not None:
             obs_MTL_label = f"{self.sample.track_lengths.mean():5.2f}"
 
         self.age_label = self.ax2.text(0.05, 0.95, f"AFT age:{age_label} Myr (obs: {obs_age_label})",
