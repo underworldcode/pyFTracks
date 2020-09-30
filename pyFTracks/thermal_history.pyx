@@ -91,75 +91,61 @@ class ThermalHistory(object):
         cdef double[::1] new_temperature = np.ndarray((200))
         cdef double cmax_temp_per_step = max_temperature_per_step
         cdef double cmax_temp_step_near_ta = max_temperature_step_near_ta
-        cdef int npoints = time.shape[0]
+        cdef int nsegments = time.shape[0] - 1
 
-        cdef double default_timestep
-        cdef double alternative_timestep = 0.0
-        cdef double gradient, abs_gradient
-        cdef double temperature_interval
-        cdef double end_temperature
-        cdef double fact
-        cdef double temp_per_step
-        cdef double current_default_timestep
-        cdef double Ta_near
-        cdef double max_temperature
-        cdef double timestep
-        cdef double time_interval
+        cdef int index, npoints
+        cdef double seg, t, T, dT, dt, dTdt
+        cdef double Ta, tend, fact
 
-        cdef int segments
-        cdef int new_npoints = 1
+        t = time[0]
+        T = temperature[0]
 
-        new_temperature[0] = temperature[npoints - 1]
-        new_time[0] = time[npoints - 1]
+        new_time[0] = t
+        new_temperature[0] = T
 
-        default_timestep = time[npoints - 1] * 1.0 / 100
+        npoints = 0
 
-        for seg in range(npoints - 1, 0, -1):
-            temperature_interval = temperature[seg] - temperature[seg - 1]
-            time_interval = time[seg] - time[seg - 1]
-            gradient = temperature_interval / time_interval
-            abs_gradient = fabs(gradient)
-            end_temperature = temperature[seg-1]
-            fact = 0
-            if gradient < 0:
-                fact = -1
-
-            temp_per_step = abs_gradient * default_timestep
-
-            if temp_per_step <= cmax_temp_per_step:
-                current_default_timestep = default_timestep
-            else:
-                current_default_timestep = cmax_temp_per_step / abs_gradient
-
-            if abs_gradient < 0.1:
-                Ta_near = 1000.
-            else:
-                Ta_near = calculate_annealing_temperature(abs_gradient) + 10.
-                alternative_timestep = cmax_temp_step_near_ta / abs_gradient
-
-            while new_time[new_npoints - 1] > time[seg-1]:
-
-                max_temperature = new_temperature[new_npoints - 1] + default_timestep * gradient * fact
-                if gradient < 0. and max_temperature > end_temperature:
-                    max_temperature = end_temperature
-               
-                timestep = current_default_timestep
-
-                if max_temperature > Ta_near:
-                    if alternative_timestep < default_timestep:
-                        timestep = alternative_timestep
-
-                if (timestep + 0.001) > (new_time[new_npoints - 1] - time[seg - 1]):
-                    new_time[new_npoints] = time[seg - 1]
-                    new_temperature[new_npoints] = end_temperature
-                else:
-                    new_time[new_npoints] = new_time[new_npoints - 1] - timestep
-                    new_temperature[new_npoints] = new_temperature[new_npoints - 1] - gradient * timestep
+        for index in range(nsegments):
+        
+            dT = temperature[index + 1] - temperature[index]
+            dt = time[index + 1] - time[index]
+            seg = dT / dt
             
-                new_npoints += 1
+            # Calculate Annealing Temperature for Fluoro-Apatite.
+            Ta = 377.67 * seg**(0.019837) if seg > 0.1 else 1000.
+            tend = time[index + 1]
+            fact = 1 if seg > 0 else -1
+                    
+            while t < tend:
+                
+                if fabs(seg) < 0.01:
+                    dt = 1.0
+                    dT = 0.0    
+                else:  
+                    dT = cmax_temp_per_step * fact
+                    dt = dT / seg
+        
+                if fabs(tend - t) < dt:
+                    dt = tend - t
+                    dT = dt * seg
+                            
+                if fabs(Ta - (T + dT)) < 10.0:
+                    dT = cmax_temp_step_near_ta * fact 
+                    dt = dT / seg
+                
+                t += dt
+                T += dT
 
-        self.time = np.array(new_time)[:new_npoints]
-        self.temperature = np.array(new_temperature)[:new_npoints]
+                npoints = npoints + 1 
+                new_time[npoints] = t
+                new_temperature[npoints] = T
+
+        self.time = np.array(new_time)[:npoints + 1]
+        self.temperature = np.array(new_temperature)[:npoints + 1]
+
+        self.time = self.time[::-1]
+        self.temperature = self.temperature[::-1]
+
         return self.time, self.temperature
 
     def get_temperature_at_time(self, time):
